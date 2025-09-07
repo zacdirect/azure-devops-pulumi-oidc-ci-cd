@@ -1,0 +1,21 @@
+# Pulumi Installer Helper Template
+parameters:
+  - name: pulumiCliVersion
+    type: string
+    default: 'latest'
+
+steps:
+  - task: UseNode@1
+    displayName: 'Use Node.js'
+    inputs:
+      version: '18.x'
+
+  - script: |
+      curl -fsSL https://get.pulumi.com | sh
+      echo "##vso[task.setvariable variable=PATH]{{{azureDevOpsSyntax.systemDefaultWorkingDirectory}}}/.pulumi/bin"
+    displayName: 'Install Pulumi CLI'
+
+  - script: |
+      npm ci
+    displayName: 'Install dependencies'
+    workingDirectory: {{{azureDevOpsSyntax.systemDefaultWorkingDirectory}}}/infra

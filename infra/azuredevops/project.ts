@@ -1,18 +1,36 @@
-// Placeholder for Azure DevOps project creation
+import * as pulumi from "@pulumi/pulumi";
+import * as azuredevops from "@pulumi/azuredevops";
 import { ProjectConfig } from "../project-config";
 
 export interface ProjectResult {
-    // Add project-related resources here when implementing
+    project?: azuredevops.Project;
+    projectData?: pulumi.Output<azuredevops.GetProjectResult>;
+    projectName: pulumi.Output<string>;
+    projectId: pulumi.Output<string>;
 }
 
-export function createProject(config: ProjectConfig): ProjectResult | undefined {
-    if (!config.azureDevopsCreateProject) {
-        return undefined;
-    }
+export function createProject(config: ProjectConfig): ProjectResult {
+    if (config.azureDevopsCreateProject) {
+        // Create new project
+        const project = new azuredevops.Project("project", {
+            name: config.projectName,
+        });
 
-    // TODO: Implement project creation using Azure DevOps provider
-    
-    return {
-        // Implementation needed
-    };
+        return {
+            project,
+            projectName: project.name,
+            projectId: project.id,
+        };
+    } else {
+        // Use existing project
+        const projectData = azuredevops.getProjectOutput({
+            name: config.azureDevopsProject,
+        });
+
+        return {
+            projectData,
+            projectName: projectData.apply(p => p.name || config.azureDevopsProject),
+            projectId: projectData.apply(p => p.id || ""),
+        };
+    }
 }

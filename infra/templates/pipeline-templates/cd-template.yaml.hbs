@@ -1,0 +1,43 @@
+---
+parameters:
+  - name: environments
+    type: object
+    default: []
+  - name: rootModuleFolderRelativePath
+    default: '.'
+  - name: pulumiCliVersion
+    default: 'latest'
+  - name: targetEnvironment
+    type: string
+
+stages:
+{{#each environments}}
+  - stage: deploy_{{@key}}
+    displayName: Deploy {{this.displayName}}
+    {{#unless @first}}dependsOn: deploy_{{#each ../environments}}{{#if @first}}{{@key}}{{/if}}{{/each}}{{/unless}}
+    condition: {{#if this.dependentEnvironment}}and(succeeded(), eq('{{{../azureDevOpsSyntax.parametersTargetEnvironment}}}', '{{@key}}')){{else}}eq('{{{../azureDevOpsSyntax.parametersTargetEnvironment}}}', '{{@key}}'){{/if}}
+    jobs:
+      - deployment: deploy
+        displayName: Deploy {{this.displayName}}
+        environment: {{this.environmentName}}
+        pool:
+{{#if ../useSelfHostedAgents}}
+          name: {{this.agentPoolName}}
+{{else}}
+          vmImage: {{this.agentPoolName}}
+{{/if}}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: helpers/pulumi-installer.yaml
+                  parameters:
+                    pulumiCliVersion: {{{../azureDevOpsSyntax.parameterspulumiCliVersion}}}
+                
+                - template: helpers/pulumi-up.yaml
+                  parameters:
+                    environmentName: {{@key}}
+                    serviceConnectionName: {{this.serviceConnectionNamePulumiUp}}
+                    variableGroupName: {{this.variableGroupName}}
+                    rootModuleFolderRelativePath: {{{../azureDevOpsSyntax.parametersRootModulePath}}}
+{{/each}}

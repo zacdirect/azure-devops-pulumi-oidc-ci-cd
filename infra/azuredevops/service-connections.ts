@@ -13,7 +13,7 @@ export function createServiceConnections(
     config: ProjectConfig,
     managedIdentities: ManagedIdentitiesResult,
     current: pulumi.Output<any>, // Azure client config
-    azureDevOpsProjectId: string
+    azureDevOpsProjectId: pulumi.Input<string>
 ): ServiceConnectionsResult {
     const connections: Record<string, any> = {};
 

@@ -18,15 +18,15 @@ export function createAgentPools(
         };
     }
 
-    const agentPool = new azuredevops.Pool(config.agentPoolName, {
+    const agentPool = new azuredevops.Pool("agent-pool", {
         name: config.agentPoolName,
         autoProvision: false,
         autoUpdate: true,
     });
 
-    const agentQueue = new azuredevops.Queue(`${config.agentPoolName}-queue`, {
+    const agentQueue = new azuredevops.Queue("agent-queue", {
         projectId: projectId,
-        agentPoolId: agentPool.id.apply(id => { return Number(id);}),
+        agentPoolId: agentPool.id.apply(id => Number(id)),
     });
 
     return {

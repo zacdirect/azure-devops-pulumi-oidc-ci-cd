@@ -36,18 +36,18 @@ const storage = createStorage(config, resourceGroups, virtualNetwork);
 
 // Create Azure DevOps resources
 const project = createProject(config);
-const serviceConnections = createServiceConnections(config, managedIdentities, current, azureDevOpsProject);
-const environments = createEnvironments(config);
-const groups = createGroups(config);
-const agentPools = createAgentPools(config, azureDevOpsProject);
+const serviceConnections = createServiceConnections(config, managedIdentities, current, project.projectId);
+const environments = createEnvironments(config, project.projectId);
+const groups = createGroups(config, project.projectId);
+const agentPools = createAgentPools(config, project.projectId);
 
 // Create agents after we have agent pools and virtual network
 const agents = createAgents(config, resourceGroups, virtualNetwork, agentPools.agentPoolName);
 
-const pipelines = createPipelines(config);
-const repositories = createRepositories(config);
-const repositoryFiles = createRepositoryFiles(config);
-const variableGroups = createVariableGroups(config);
+const repositories = createRepositories(config, project.projectId, environments);
+const pipelines = createPipelines(config, project.projectId, repositories, environments, serviceConnections, agentPools);
+const repositoryFiles = createRepositoryFiles(config, repositories);
+const variableGroups = createVariableGroups(config, project.projectId, resourceGroups, storage);
 
 // Export important values for Azure DevOps service connection setup
 export const subscriptionId = current.subscriptionId;

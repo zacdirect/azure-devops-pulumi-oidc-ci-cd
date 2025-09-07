@@ -9,6 +9,7 @@
         "@pulumi/azure-agents": "file:sdks/azure-agents",
         "@pulumi/azure-native": "^3.0.0",
         "@pulumi/azuredevops": "^3.10.1",
-        "@pulumi/pulumi": "^3.0.0"
+        "@pulumi/pulumi": "^3.0.0",
+        "handlebars": "^4.7.8"
     }
 }
