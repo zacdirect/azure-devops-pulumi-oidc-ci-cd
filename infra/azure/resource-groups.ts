@@ -30,8 +30,8 @@ export function createResourceGroups(config: ProjectConfig): ResourceGroupsResul
     const environments: Record<string, azure.resources.ResourceGroup> = {};
     Object.entries(config.environments).forEach(([envKey, envValue]) => {
         if (envValue.resourceGroupCreate) {
-            const rgName = envValue.resourceGroupNameTemplate || `rg-${config.resourceNameWorkload}-${envKey}-${config.location}-001`;
-            environments[envKey] = new azure.resources.ResourceGroup(rgName, {
+            // Logical name will be transformed by autonaming rules: rg-${name}
+            environments[envKey] = new azure.resources.ResourceGroup(`${config.resourceNameWorkload}-${envKey}-${config.location}`, {
                 location: config.location,
             });
         }

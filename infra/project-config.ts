@@ -33,15 +33,13 @@ export interface EnvironmentConfig {
     hasApproval?: boolean;
     dependentEnvironment?: string;
     resourceGroupCreate?: boolean;
-    resourceGroupNameTemplate?: string;
-    userAssignedManagedIdentityNameTemplate?: string;
 }
 
-export interface Environments {
-    dev: EnvironmentConfig;
-    test: EnvironmentConfig;
-    prod: EnvironmentConfig;
-}
+/**
+ * Simple environment configuration loaded from Pulumi.yaml.
+ * Supports the standard dev/test/prod setup from the original Terraform project.
+ */
+export type Environments = Record<string, EnvironmentConfig>;
 
 
 
@@ -68,7 +66,6 @@ export interface ProjectConfigInit {
     resourceNameWorkload?: string;
     resourceNameEnvironment?: string;
     resourceNameSequenceStart?: number;
-    environments?: Environments;
     organizationNamePrefix?: string;
     versionControlSystemAuthenticationMethod?: string;
     versionControlSystemGithubApplicationId?: string;
@@ -177,15 +174,55 @@ export class ProjectConfig extends pulumi.Config {
         this.agentPoolName = layered('agentPoolName', `agent-pool-${replacements.workload}-${replacements.environment}`);
         this.groupName = layered('groupName', `group-${replacements.workload}-${replacements.environment}-approvers`);
 
-        this.environments = layered('environments', {
-            dev: { displayOrder: 1, displayName: 'Development' },
-            test: { displayOrder: 2, displayName: 'Test', dependentEnvironment: 'dev' },
-            prod: { displayOrder: 3, displayName: 'Production', hasApproval: true, dependentEnvironment: 'test' }
-        });
+        // Load environments from Pulumi configuration (defined in Pulumi.yaml)
+        this.environments = this.getObject<Environments>('environments') || {
+            dev: { displayOrder: 1, displayName: 'Development', resourceGroupCreate: true },
+            test: { displayOrder: 2, displayName: 'Test', dependentEnvironment: 'dev', resourceGroupCreate: true },
+            prod: { displayOrder: 3, displayName: 'Production', hasApproval: true, dependentEnvironment: 'test', resourceGroupCreate: true }
+        };
+        
         this.organizationNamePrefix = layered('organizationNamePrefix', 'https://dev.azure.com');
         this.versionControlSystemAuthenticationMethod = layered('versionControlSystemAuthenticationMethod', 'pat');
         this.versionControlSystemGithubApplicationId = layered('versionControlSystemGithubApplicationId', '');
         this.versionControlSystemGithubApplicationInstallationId = layered('versionControlSystemGithubApplicationInstallationId', '');
         this.versionControlSystemGithubApplicationKey = layered('versionControlSystemGithubApplicationKey', '');
+    }
+
+    /**
+     * Get environment configuration by name
+     */
+    public getEnvironment(name: string): EnvironmentConfig | undefined {
+        return this.environments[name];
+    }
+
+    /**
+     * Get all environment names
+     */
+    public getEnvironmentNames(): string[] {
+        return Object.keys(this.environments);
+    }
+
+    /**
+     * Get environments sorted by display order
+     */
+    public getEnvironmentsSorted(): Array<{ name: string; config: EnvironmentConfig }> {
+        return Object.entries(this.environments)
+            .map(([name, config]) => ({ name, config }))
+            .sort((a, b) => a.config.displayOrder - b.config.displayOrder);
+    }
+
+    /**
+     * Check if an environment exists
+     */
+    public hasEnvironment(name: string): boolean {
+        return name in this.environments;
+    }
+
+    /**
+     * Get the dependent environment for a given environment
+     */
+    public getDependentEnvironment(environmentName: string): string | undefined {
+        const env = this.getEnvironment(environmentName);
+        return env?.dependentEnvironment;
     }
 }

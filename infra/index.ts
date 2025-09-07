@@ -31,16 +31,19 @@ const azureDevOpsProject = config.azureDevopsProject;
 const resourceGroups = createResourceGroups(config);
 const managedIdentities = createManagedIdentities(config, resourceGroups, azureDevOpsOrganization, azureDevOpsProject);
 const roleAssignments = createRoleAssignments(config, resourceGroups, managedIdentities, current);
-const agents = createAgents(config, resourceGroups);
-const storage = createStorage(config, resourceGroups);
 const virtualNetwork = createVirtualNetwork(config, resourceGroups);
+const storage = createStorage(config, resourceGroups, virtualNetwork);
 
 // Create Azure DevOps resources
 const project = createProject(config);
 const serviceConnections = createServiceConnections(config, managedIdentities, current, azureDevOpsProject);
 const environments = createEnvironments(config);
 const groups = createGroups(config);
-const agentPools = createAgentPools(config);
+const agentPools = createAgentPools(config, azureDevOpsProject);
+
+// Create agents after we have agent pools and virtual network
+const agents = createAgents(config, resourceGroups, virtualNetwork, agentPools.agentPoolName);
+
 const pipelines = createPipelines(config);
 const repositories = createRepositories(config);
 const repositoryFiles = createRepositoryFiles(config);
@@ -70,7 +73,7 @@ export const serviceConnectionConfig = {
         name: "service-connection-dev-plan",
         description: "OIDC connection for dev environment planning",
         subscriptionId: current.subscriptionId,
-        subscriptionName: subscription.displayName,
+        subscriptionName: "Current Subscription", // Could be retrieved via a separate call if needed
         tenantId: current.tenantId,
         servicePrincipalId: devPlanIdentity?.clientId,
         scheme: "WorkloadIdentityFederation",
@@ -79,7 +82,7 @@ export const serviceConnectionConfig = {
         name: "service-connection-dev-apply", 
         description: "OIDC connection for dev environment deployment",
         subscriptionId: current.subscriptionId,
-        subscriptionName: subscription.displayName,
+        subscriptionName: "Current Subscription", // Could be retrieved via a separate call if needed
         tenantId: current.tenantId,
         servicePrincipalId: devApplyIdentity?.clientId,
         scheme: "WorkloadIdentityFederation",

@@ -8,6 +8,59 @@ config:
   pulumi:tags:
     value:
       pulumi:template: azure-typescript
+  pulumi:autonaming:
+    value:
+      # Global pattern for most resources
+      pattern: ${name}-${random(6)}
+      providers:
+        azure-native:
+          resources:
+            # User Assigned Managed Identities
+            "azure-native:managedidentity:UserAssignedIdentity":
+              pattern: uami-${name}
+            # Resource Groups
+            "azure-native:resources:ResourceGroup":
+              pattern: rg-${name}
+            # Storage Accounts (need to be globally unique and lowercase)
+            "azure-native:storage:StorageAccount":
+              pattern: sto${name}${random(4)}
+              transform: lower
+            # Virtual Networks
+            "azure-native:network:VirtualNetwork":
+              pattern: vnet-${name}
+            # Network Security Groups
+            "azure-native:network:NetworkSecurityGroup":
+              pattern: nsg-${name}
+            # NAT Gateways
+            "azure-native:network:NatGateway":
+              pattern: nat-${name}
+            # Public IPs
+            "azure-native:network:PublicIPAddress":
+              pattern: pip-${name}
+            # Private Endpoints
+            "azure-native:network:PrivateEndpoint":
+              pattern: pe-${name}
+            # Federated Identity Credentials
+            "azure-native:managedidentity:FederatedIdentityCredential":
+              pattern: fic-${name}
+  # Environments configuration - matches original Terraform setup
+  environments:
+    value:
+      dev:
+        displayOrder: 1
+        displayName: "Development"
+        resourceGroupCreate: true
+      test:
+        displayOrder: 2
+        displayName: "Test"
+        dependentEnvironment: "dev"
+        resourceGroupCreate: true
+      prod:
+        displayOrder: 3
+        displayName: "Production"
+        hasApproval: true
+        dependentEnvironment: "test"
+        resourceGroupCreate: true
 packages:
   azure-agents:
     source: terraform-module

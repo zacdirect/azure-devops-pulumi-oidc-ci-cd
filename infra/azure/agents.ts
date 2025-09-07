@@ -2,20 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as azureAgents from "../sdks/azure-agents";
 import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
-
-export interface VirtualNetworkSubnet {
-    resourceId: pulumi.Output<string>;
-}
-
-export interface VirtualNetworkSubnets {
-    agents: VirtualNetworkSubnet;
-    privateEndpoints: VirtualNetworkSubnet;
-}
-
-export interface VirtualNetworkResult {
-    resourceId: pulumi.Output<string>;
-    subnets: VirtualNetworkSubnets;
-}
+import { VirtualNetworkResult } from "./virtual-network";
 
 export interface AgentsResult {
     module: azureAgents.Module;

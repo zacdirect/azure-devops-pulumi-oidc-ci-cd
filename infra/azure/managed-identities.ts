@@ -46,20 +46,19 @@ export function createManagedIdentities(
 
     // Create managed identities for each environment and operation type
     Object.keys(config.environments).forEach(envKey => {
-        ['plan', 'apply'].forEach(operation => {
+        ['preview', 'up'].forEach(operation => {
             const identityKey = `${envKey}-${operation}`;
-            const identityName = config.environments[envKey].userAssignedManagedIdentityNameTemplate?.replace('{operation}', operation) ||
-                `uami-${config.resourceNameWorkload}-${envKey}-${operation}`;
 
             // Create User Assigned Managed Identity
-            userAssignedIdentities[identityKey] = new azure.managedidentity.UserAssignedIdentity(identityName, {
+            // Logical name will be transformed by autonaming rules in Pulumi.yaml: uami-${name}
+            userAssignedIdentities[identityKey] = new azure.managedidentity.UserAssignedIdentity(`${config.resourceNameWorkload}-${envKey}-${operation}`, {
                 resourceGroupName: resourceGroups.identity.name,
                 location: config.location,
             });
 
             // Create Federated Identity Credential
-            const credentialName = `${azureDevOpsOrganization}-${azureDevOpsProject}-${identityKey}`;
-            federatedCredentials[identityKey] = new azure.managedidentity.FederatedIdentityCredential(credentialName, {
+            // Logical name will be transformed by autonaming rules: fic-${name}
+            federatedCredentials[identityKey] = new azure.managedidentity.FederatedIdentityCredential(`${config.azureDevopsProject}-${envKey}-${operation}`, {
                 resourceGroupName: resourceGroups.identity.name,
                 resourceName: userAssignedIdentities[identityKey].name,
                 audiences: ["api://AzureADTokenExchange"],

@@ -121,7 +121,7 @@ The solution deploys the following components:
 
 ## Configuration
 
-The project uses Pulumi's configuration system with support for layered configuration (stack config, environment variables, and defaults). Key configuration options include:
+The project uses Pulumi's configuration system with settings defined in `Pulumi.yaml`. Key configuration includes:
 
 ### Required Configuration
 - `personalAccessToken`: Azure DevOps PAT (secret)
@@ -134,6 +134,14 @@ The project uses Pulumi's configuration system with support for layered configur
 - `resourceNameWorkload`: Workload identifier for resource naming
 - `addressSpace`: Virtual network address space
 - `agentUseAvailabilityZones`: Enable availability zones for agents
+
+### Environments
+The project supports three environments matching the original Terraform setup:
+- **dev**: Development environment
+- **test**: Test environment (depends on dev)  
+- **prod**: Production environment (requires approval, depends on test)
+
+Environment configuration is defined directly in `Pulumi.yaml` and can be customized as needed.
 
 See `project-config.ts` for the complete configuration schema.
 
