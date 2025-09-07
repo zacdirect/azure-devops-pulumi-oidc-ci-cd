@@ -1,0 +1,44 @@
+config:
+  azure-native:location: NorthCentralUs
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemType: "azuredevops"
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemPersonalAccessToken: "todo"
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemOrganization: "https://dev.azure.com/zacharycook/"
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemPoolName: "pulumi_should_create_this_pool_name"
+  azure-devops-pulumi-oidc-ci-cd:location: "northcentralus"
+  azure-devops-pulumi-oidc-ci-cd:organizationName: "zacharycook/"
+  azure-devops-pulumi-oidc-ci-cd:personalAccessToken: "todo"
+  azure-devops-pulumi-oidc-ci-cd:azureDevopsProject: "ZacDirect"
+  azure-devops-pulumi-oidc-ci-cd:azureDevopsCreateProject: false
+  azure-devops-pulumi-oidc-ci-cd:useSelfHostedAgents: true
+  azure-devops-pulumi-oidc-ci-cd:selfHostedAgentType: "azure_container_instance"
+  azure-devops-pulumi-oidc-ci-cd:addressSpace: "10.0.10.0/24"
+  azure-devops-pulumi-oidc-ci-cd:subnetsAndSizes:
+    agents: 27
+    private_endpoints: 29
+  azure-devops-pulumi-oidc-ci-cd:approvers: {}
+  azure-devops-pulumi-oidc-ci-cd:exampleModulePath: "../zac-direct-modules"
+  azure-devops-pulumi-oidc-ci-cd:repositoryPostfix: "zacdirect"
+  azure-devops-pulumi-oidc-ci-cd:repositoryPostfixTemplate: "zac-direct-template"
+  azure-devops-pulumi-oidc-ci-cd:agentUseAvailabilityZones: false
+  azure-devops-pulumi-oidc-ci-cd:resourceNameLocationShort: ""
+  azure-devops-pulumi-oidc-ci-cd:resourceNameWorkload: "dema"
+  azure-devops-pulumi-oidc-ci-cd:resourceNameEnvironment: "mgt"
+  azure-devops-pulumi-oidc-ci-cd:resourceNameSequenceStart: 1
+  azure-devops-pulumi-oidc-ci-cd:environments:
+    dev:
+      display_order: 1
+      display_name: "Development"
+    test:
+      display_order: 2
+      display_name: "Test"
+      dependent_environment: "dev"
+    prod:
+      display_order: 3
+      display_name: "Production"
+      has_approval: true
+      dependent_environment: "test"
+  azure-devops-pulumi-oidc-ci-cd:organizationNamePrefix: "https://dev.azure.com"
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemAuthenticationMethod: "pat"
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemGithubApplicationId: ""
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemGithubApplicationInstallationId: ""
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemGithubApplicationKey: ""

@@ -1,0 +1,14 @@
+{
+    "name": "azure-devops-pulumi-oidc-ci-cd",
+    "main": "index.ts",
+    "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@pulumi/azure-agents": "file:sdks/azure-agents",
+        "@pulumi/azure-native": "^3.0.0",
+        "@pulumi/azuredevops": "^3.10.1",
+        "@pulumi/pulumi": "^3.0.0"
+    }
+}
