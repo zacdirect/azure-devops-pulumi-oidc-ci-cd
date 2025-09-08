@@ -8,6 +8,7 @@ config:
   pulumi:tags:
     value:
       pulumi:template: azure-typescript
+  pulumi:disable-default-providers: ["*"]
   pulumi:autonaming:
     value:
       # Global pattern for most resources

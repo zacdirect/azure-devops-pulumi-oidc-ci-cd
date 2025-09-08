@@ -28,15 +28,33 @@ config:
     dev:
       display_order: 1
       display_name: "Development"
+      provider: "dev"  # Reference to dev provider
     test:
       display_order: 2
       display_name: "Test"
       dependent_environment: "dev"
+      provider: "test"  # Reference to test provider
     prod:
       display_order: 3
       display_name: "Production"
       has_approval: true
       dependent_environment: "test"
+      provider: "prod"  # Reference to prod provider
+  azure-devops-pulumi-oidc-ci-cd:providers:
+    dev:
+      subscriptionName: "Development Subscription"
+      # Development environment provider
+      # These could come from ESC dynamic login credentials:
+      # subscriptionId: "${azure.subscriptionId}"
+      # tenantId: "${azure.tenantId}"
+      # clientId: "${azure.clientId}"
+      # useOidc: true
+    test:
+      subscriptionName: "Test Subscription"
+      # Test environment provider
+    prod:
+      subscriptionName: "Production Subscription"
+      # Production environment provider
   azure-devops-pulumi-oidc-ci-cd:organizationNamePrefix: "https://dev.azure.com"
   azure-devops-pulumi-oidc-ci-cd:versionControlSystemAuthenticationMethod: "pat"
   azure-devops-pulumi-oidc-ci-cd:versionControlSystemGithubApplicationId: ""

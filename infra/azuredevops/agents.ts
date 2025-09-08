@@ -3,35 +3,52 @@ import * as azuredevops from "@pulumi/azuredevops";
 import { ProjectConfig } from "../project-config";
 
 export interface AgentPoolsResult {
-    agentPool?: azuredevops.Pool;
-    agentQueue?: azuredevops.Queue;
-    agentPoolName: pulumi.Output<string>;
+    agentPools: Record<string, azuredevops.Pool>;
+    agentQueues: Record<string, azuredevops.Queue>;
+    poolNames: Record<string, pulumi.Output<string>>;
 }
 
 export function createAgentPools(
     config: ProjectConfig,
     projectId: pulumi.Input<string>
 ): AgentPoolsResult {
+    const agentPools: Record<string, azuredevops.Pool> = {};
+    const agentQueues: Record<string, azuredevops.Queue> = {};
+    const poolNames: Record<string, pulumi.Output<string>> = {};
+
     if (!config.useSelfHostedAgents) {
+        // For environments not using self-hosted agents, use hosted agents
+        Object.keys(config.environments).forEach(envKey => {
+            poolNames[envKey] = pulumi.output("ubuntu-latest");
+        });
         return {
-            agentPoolName: pulumi.output("ubuntu-latest"),
+            agentPools,
+            agentQueues,
+            poolNames,
         };
     }
 
-    const agentPool = new azuredevops.Pool("agent-pool", {
-        name: config.agentPoolName,
-        autoProvision: false,
-        autoUpdate: true,
-    });
+    // Create agent pools per environment
+    Object.keys(config.environments).forEach(envKey => {
+        const agentPool = new azuredevops.Pool(`${envKey}-agent-pool`, {
+            name: `${config.agentPoolName}-${envKey}`,
+            autoProvision: false,
+            autoUpdate: true,
+        });
 
-    const agentQueue = new azuredevops.Queue("agent-queue", {
-        projectId: projectId,
-        agentPoolId: agentPool.id.apply(id => Number(id)),
+        const agentQueue = new azuredevops.Queue(`${envKey}-agent-queue`, {
+            projectId: projectId,
+            agentPoolId: agentPool.id.apply(id => Number(id)),
+        });
+
+        agentPools[envKey] = agentPool;
+        agentQueues[envKey] = agentQueue;
+        poolNames[envKey] = agentPool.name;
     });
 
     return {
-        agentPool,
-        agentQueue,
-        agentPoolName: agentPool.name,
+        agentPools,
+        agentQueues,
+        poolNames,
     };
 }

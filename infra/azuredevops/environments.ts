@@ -1,25 +1,54 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as azuredevops from "@pulumi/azuredevops";
 import { ProjectConfig } from "../project-config";
+import { ProvidersResult } from "../azure/providers";
+
+export interface AzureEnvironmentDetails {
+    subscriptionId: string;
+    subscriptionName: string;
+    tenantId: string;
+    providerName: string;
+}
 
 export interface EnvironmentsResult {
     environments: Record<string, azuredevops.Environment>;
     exclusiveLocks: Record<string, azuredevops.CheckExclusiveLock>;
+    azureDetails: Record<string, AzureEnvironmentDetails>;
 }
 
 export function createEnvironments(
     config: ProjectConfig,
-    projectId: pulumi.Input<string>
+    projectId: pulumi.Input<string>,
+    providers: ProvidersResult
 ): EnvironmentsResult {
     const environments: Record<string, azuredevops.Environment> = {};
     const exclusiveLocks: Record<string, azuredevops.CheckExclusiveLock> = {};
+    const azureDetails: Record<string, AzureEnvironmentDetails> = {};
 
     // Create environments for each configured environment
-    Object.entries(config.environments).forEach(([envKey]) => {
-        // Create the environment
+    Object.entries(config.environments).forEach(([envKey, envConfig]) => {
+        // Get the Azure provider configuration for this environment
+        const providerName = envConfig.provider || envKey;
+        const providerConfig = config.providers[providerName];
+        const azureProvider = providers.environments[envKey];
+        
+        if (!providerConfig || !azureProvider) {
+            throw new Error(`Provider configuration not found for environment '${envKey}' using provider '${providerName}'`);
+        }
+
+        // Extract Azure details needed for Azure DevOps work
+        azureDetails[envKey] = {
+            subscriptionId: providerConfig.subscriptionId,
+            subscriptionName: azureProvider.subscriptionName,
+            tenantId: providerConfig.tenantId,
+            providerName: providerName,
+        };
+
+        // Create the environment with Azure provider details
         const environment = new azuredevops.Environment(`environment-${envKey}`, {
             name: envKey,
             projectId: projectId,
+            description: `${envConfig.displayName} - Azure Subscription: ${azureProvider.subscriptionName}`,
         });
 
         environments[envKey] = environment;
@@ -38,5 +67,6 @@ export function createEnvironments(
     return {
         environments,
         exclusiveLocks,
+        azureDetails,
     };
 }

@@ -2,7 +2,8 @@ import * as pulumi from "@pulumi/pulumi";
 import * as azure from "@pulumi/azure-native";
 import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
-import { VirtualNetworkResult } from "./virtual-network";
+import { VirtualNetworksResult } from "./virtual-network";
+import { ProvidersResult } from "./providers";
 
 // Network rules configuration
 export interface NetworkRules {
@@ -248,49 +249,66 @@ export interface StorageResult {
     artifactsStorage: StorageAccountResult;
 }
 
+export interface StorageResults {
+    environments: Record<string, StorageResult>;
+}
+
 export function createStorage(
     config: ProjectConfig,
     resourceGroups: ResourceGroupsResult,
-    virtualNetwork?: VirtualNetworkResult
-): StorageResult {
+    virtualNetworks: VirtualNetworksResult,
+    providers: ProvidersResult
+): StorageResults {
+    const environments: Record<string, StorageResult> = {};
 
-    // Create storage account for build artifacts
-    const artifactsStorage = createStorageAccount(
-        `${config.resourceNameWorkload}-artifacts`,
-        {
-            location: config.location,
-            name: `${config.resourceNameWorkload}artifacts`.toLowerCase().replace(/-/g, ""),
-            resourceGroupName: pulumi.output(resourceGroups.state.name),
-            accountTier: "Standard",
-            accountReplicationType: "LRS",
-            accountKind: "StorageV2",
-            minTlsVersion: "TLS1_2",
-            httpsTrafficOnlyEnabled: true,
-            publicNetworkAccessEnabled: true,
-            sharedAccessKeyEnabled: true,
-            allowNestedItemsToBePublic: false,
-            containers: {
-                artifacts: {
-                    name: "artifacts",
-                    containerAccessType: "None",
+    Object.entries(config.environments).forEach(([envKey]) => {
+        const provider = providers.environments[envKey];
+        const virtualNetwork = virtualNetworks.environments[envKey];
+        const artifactsResourceGroup = resourceGroups.environments[envKey]?.workload;
+
+        if (!provider || !artifactsResourceGroup) return;
+
+        // Create storage account for build artifacts
+        const artifactsStorage = createStorageAccount(
+            `${envKey}-${config.resourceNameWorkload}-artifacts`,
+            {
+                location: config.location,
+                name: `${envKey}${config.resourceNameWorkload}artifacts`.toLowerCase().replace(/-/g, "").substring(0, 24), // Storage account names must be <= 24 chars
+                resourceGroupName: pulumi.output(artifactsResourceGroup.name),
+                accountTier: "Standard",
+                accountReplicationType: "LRS",
+                accountKind: "StorageV2",
+                minTlsVersion: "TLS1_2",
+                httpsTrafficOnlyEnabled: true,
+                publicNetworkAccessEnabled: true,
+                sharedAccessKeyEnabled: true,
+                allowNestedItemsToBePublic: false,
+                containers: {
+                    artifacts: {
+                        name: "artifacts",
+                        containerAccessType: "None",
+                    },
+                    logs: {
+                        name: "logs",
+                        containerAccessType: "None",
+                    },
                 },
-                logs: {
-                    name: "logs",
-                    containerAccessType: "None",
+                // Network rules to restrict access if virtual network is provided
+                networkRules: virtualNetwork ? {
+                    defaultAction: "Deny",
+                    bypass: ["AzureServices"],
+                    virtualNetworkSubnetIds: [virtualNetwork.subnets.agents.resourceId],
+                } : {
+                    defaultAction: "Allow",
                 },
             },
-            // Network rules to restrict access if virtual network is provided
-            networkRules: virtualNetwork ? {
-                defaultAction: "Deny",
-                bypass: ["AzureServices"],
-                virtualNetworkSubnetIds: [virtualNetwork.subnets.agents.resourceId],
-            } : {
-                defaultAction: "Allow",
-            },
-        }
-    );
+            { provider }
+        );
 
-    return {
-        artifactsStorage,
-    };
+        environments[envKey] = {
+            artifactsStorage,
+        };
+    });
+
+    return { environments };
 }

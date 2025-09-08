@@ -66,59 +66,6 @@ The solution deploys the following components:
 - Azure DevOps organization with sufficient permissions
 - Azure DevOps Personal Access Token (PAT) with required scopes
 
-## Quick Start
-
-1. **Clone and Setup**
-   ```bash
-   git clone <this-repository>
-   cd azure-devops-pulumi-oidc-ci-cd/infra
-   npm install
-   ```
-
-2. **Configure Your Stack**
-   ```bash
-   pulumi config set azure-native:location "East US 2"
-   pulumi config set --secret personalAccessToken "your-azure-devops-pat"
-   pulumi config set organizationName "your-azure-devops-org"
-   # ... additional configuration as needed
-   ```
-
-3. **Deploy Infrastructure**
-   ```bash
-   pulumi up
-   ```
-
- ## Project Structure
-
-```
-.
-├── infra/                           # Pulumi infrastructure code
-│   ├── azure/                       # Azure resource modules
-│   │   ├── agents.ts               # Self-hosted agent infrastructure
-│   │   ├── managed-identities.ts   # User-assigned managed identities
-│   │   ├── resource-groups.ts      # Resource group organization
-│   │   ├── storage.ts              # State storage and private endpoints
-│   │   └── virtual-network.ts      # Networking infrastructure
-│   ├── azuredevops/                # Azure DevOps resource modules
-│   │   ├── agents.ts               # Agent pools and queues
-│   │   ├── environments.ts         # Deployment environments
-│   │   ├── pipelines.ts            # CI/CD pipeline definitions
-│   │   ├── project.ts              # Project creation and configuration
-│   │   ├── repositories.ts         # Git repository management
-│   │   └── service-connections.ts  # OIDC service connections
-│   ├── sdks/                       # Generated Terraform module SDKs
-│   │   └── azure-agents/           # Azure agent Terraform module
-│   ├── index.ts                    # Main Pulumi program
-│   ├── project-config.ts           # Configuration management
-│   ├── layered-config.ts           # Configuration layer utilities
-│   └── package.json                # Dependencies and scripts
-├── pipelines/                      # Azure DevOps pipeline templates
-│   ├── main/                       # Main pipeline definitions
-│   └── templates/                  # Reusable pipeline templates
-├── STRUCTURE.md                    # Detailed project structure
-└── README.md                       # This file
-```
-
 ## Configuration
 
 The project uses Pulumi's configuration system with settings defined in `Pulumi.yaml`. Key configuration includes:
@@ -136,7 +83,7 @@ The project uses Pulumi's configuration system with settings defined in `Pulumi.
 - `agentUseAvailabilityZones`: Enable availability zones for agents
 
 ### Environments
-The project supports three environments matching the original Terraform setup:
+The project exemplifies three environments matching the original Terraform setup:
 - **dev**: Development environment
 - **test**: Test environment (depends on dev)  
 - **prod**: Production environment (requires approval, depends on test)
@@ -154,6 +101,99 @@ While maintaining feature parity with the original Terraform implementation, thi
 - **Component-based Architecture**: Modular design with clear separation of concerns
 - **Enhanced Developer Experience**: IntelliSense, type checking, and modern IDE support
 - **Simplified State Management**: Pulumi's built-in state management removes the need for manual backend configuration
+
+### Multi-Provider Azure Configuration
+
+Pulumi Providers offer a lot of power in a bootstrap environment like this.  So this project supports configuring different Azure providers for different environments, enabling scenarios like:
+
+1. **Cross-subscription deployments** - Different environments in different Azure subscriptions
+2. **Cross-tenant deployments** - Different environments in different Azure tenants  
+3. **Dynamic credentials from ESC** - Provider credentials sourced from Pulumi ESC
+
+### Configuration Structure
+
+#### Providers Block
+
+Define providers in your Pulumi configuration:
+
+```yaml
+config:
+  azure-devops-pulumi-oidc-ci-cd:providers:
+    prod:
+      subscriptionId: "12345678-1234-1234-1234-123456789012"
+      tenantId: "87654321-4321-4321-4321-210987654321"
+      subscriptionName: "Production Subscription"
+      useOidc: true
+    staging:
+      subscriptionId: "87654321-4321-4321-4321-210987654321"
+      subscriptionName: "Staging Subscription"
+```
+
+#### Environment-Provider Association
+
+Reference providers in environment configurations:
+
+```yaml
+config:
+  azure-devops-pulumi-oidc-ci-cd:environments:
+    dev:
+      display_order: 1
+      display_name: "Development"
+      # No provider specified = uses default Azure context
+    prod:
+      display_order: 3
+      display_name: "Production"
+      provider: "prod"  # References the prod provider above
+```
+
+#### ESC Integration
+
+When using Pulumi ESC for dynamic credentials, your provider can fully OIDC via Pulumi Cloud:
+
+```yaml
+values:
+  azure:
+    prod:
+      fn::open::azure-login:
+        clientId: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+        tenantId: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+        subscriptionId: /subscriptions/00000000-0000-0000-0000-000000000000
+        oidc: true
+  pulumiConfig:
+    azure-devops-pulumi-oidc-ci-cd:providers:
+      prod:
+        subscriptionId: "${azure.prod.clientId}"
+        tenantId: "${azure.prod.tenantId}"
+        clientId: "${azure.prod.clientId}"
+        useOidc: true
+        subscriptionName: "Azure Prod Subscription" #Provided as config vs an actual login property
+```
+
+#### Service Connections
+
+Service connections automatically use the appropriate provider configuration:
+
+- **Default environments** use the current Azure context
+- **Provider-specific environments** use tenant/subscription from the configured provider
+- **Subscription names** are automatically set from provider configuration
+
+This ensures service connections point to the correct Azure subscription for each environment.
+
+#### Extended Azure Provider
+
+The `ExtendedAzureProvider` class extends the standard Azure provider to include:
+
+- `subscriptionName` property for display purposes
+- Integration with the layered configuration system
+- Automatic provider selection based on environment configuration
+
+#### Benefits
+
+1. **Flexibility** - Deploy to any combination of subscriptions/tenants
+2. **Security** - Each environment can have its own credentials and permissions
+3. **Clarity** - Service connections clearly show which subscription they target
+4. **ESC Integration** - Seamless integration with Pulumi ESC for credential management
+
 
 ## Resources Created
 
@@ -181,21 +221,10 @@ After successful deployment, the stack exports:
 - **serviceConnectionIds**: OIDC service connection identifiers
 - **storageAccountName**: Name of the state storage account
 
- ## Next Steps
-
-After deploying the infrastructure:
-
-1. **Verify Agent Registration**: Check that self-hosted agents appear in your Azure DevOps agent pool
-2. **Test Pipelines**: Run the created CI/CD pipelines to verify OIDC authentication
-3. **Customize Configuration**: Modify `project-config.ts` for your specific requirements
-4. **Extend Infrastructure**: Add additional Azure resources or Azure DevOps configurations
-5. **Implement Environment Promotion**: Set up multi-environment deployment workflows
-
 ## Contributing
 
 This project follows the patterns established by the original Terraform implementation. When contributing:
 
-- Maintain compatibility with the original project's configuration schema
 - Follow the established naming conventions and resource organization
 - Ensure TypeScript type safety and proper error handling
 - Update documentation for any new features or changes

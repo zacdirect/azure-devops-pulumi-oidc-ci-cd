@@ -2,6 +2,7 @@ import * as azure from "@pulumi/azure-native";
 import * as pulumi from "@pulumi/pulumi";
 import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
+import { ProvidersResult, getProviderForEnvironment } from "./providers";
 
 export interface ManagedIdentitiesResult {
     userAssignedIdentities: Record<string, azure.managedidentity.UserAssignedIdentity>;
@@ -12,7 +13,8 @@ export function createManagedIdentities(
     config: ProjectConfig,
     resourceGroups: ResourceGroupsResult,
     azureDevOpsOrganization: string,
-    azureDevOpsProject: string
+    azureDevOpsProject: string,
+    providers: ProvidersResult
 ): ManagedIdentitiesResult {
     const userAssignedIdentities: Record<string, azure.managedidentity.UserAssignedIdentity> = {};
     const federatedCredentials: Record<string, azure.managedidentity.FederatedIdentityCredential> = {};
@@ -48,23 +50,29 @@ export function createManagedIdentities(
     Object.keys(config.environments).forEach(envKey => {
         ['preview', 'up'].forEach(operation => {
             const identityKey = `${envKey}-${operation}`;
+            const envProvider = getProviderForEnvironment(providers, envKey);
+            const envResourceGroups = resourceGroups.environments[envKey];
 
-            // Create User Assigned Managed Identity
+            if (!envResourceGroups) {
+                throw new Error(`Resource groups not found for environment '${envKey}'`);
+            }
+
+            // Create User Assigned Managed Identity in the environment's identity resource group
             // Logical name will be transformed by autonaming rules in Pulumi.yaml: uami-${name}
             userAssignedIdentities[identityKey] = new azure.managedidentity.UserAssignedIdentity(`${config.resourceNameWorkload}-${envKey}-${operation}`, {
-                resourceGroupName: resourceGroups.identity.name,
+                resourceGroupName: envResourceGroups.identity.name,
                 location: config.location,
-            });
+            }, { provider: envProvider });
 
             // Create Federated Identity Credential
             // Logical name will be transformed by autonaming rules: fic-${name}
             federatedCredentials[identityKey] = new azure.managedidentity.FederatedIdentityCredential(`${config.azureDevopsProject}-${envKey}-${operation}`, {
-                resourceGroupName: resourceGroups.identity.name,
+                resourceGroupName: envResourceGroups.identity.name,
                 resourceName: userAssignedIdentities[identityKey].name,
                 audiences: ["api://AzureADTokenExchange"],
                 issuer: pulumi.interpolate`https://vstoken.dev.azure.com/${azureDevOpsOrganization}`,
                 subject: pulumi.interpolate`sc://${azureDevOpsOrganization}/${azureDevOpsProject}/service-connection-${identityKey}`,
-            });
+            }, { provider: envProvider });
         });
     });
 

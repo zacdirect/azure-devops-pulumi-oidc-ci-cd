@@ -38,13 +38,13 @@ stages:
               PULUMI_ACCESS_TOKEN: {{{azureDevOpsSyntax.pulumiAccessToken}}}
 
 {{#each environments}}
-  - stage: plan_{{@key}}
-    displayName: Plan {{this.displayName}}
+  - stage: preview_{{@key}}
+    displayName: Preview {{this.displayName}}
     dependsOn: validate
     condition: succeeded()
     jobs:
-      - job: plan
-        displayName: Plan {{this.displayName}}
+      - job: preview
+        displayName: Preview {{this.displayName}}
         pool:
 {{#if ../useSelfHostedAgents}}
           name: {{this.agentPoolName}}

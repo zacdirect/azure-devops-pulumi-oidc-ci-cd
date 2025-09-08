@@ -2,6 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as azure from "@pulumi/azure-native";
 import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
+import { ProvidersResult } from "./providers";
 
 export interface VirtualNetworkSubnet {
     resourceId: pulumi.Output<string>;
@@ -19,14 +20,40 @@ export interface VirtualNetworkResult {
     subnets: VirtualNetworkSubnets;
 }
 
-export function createVirtualNetwork(
+export interface VirtualNetworksResult {
+    environments: Record<string, VirtualNetworkResult>;
+}
+
+export function createVirtualNetworks(
     config: ProjectConfig,
-    resourceGroups: ResourceGroupsResult
+    resourceGroups: ResourceGroupsResult,
+    providers: ProvidersResult
+): VirtualNetworksResult {
+    const environments: Record<string, VirtualNetworkResult> = {};
+
+    Object.entries(config.environments).forEach(([envKey]) => {
+        const provider = providers.environments[envKey];
+        const agentsResourceGroup = resourceGroups.environments[envKey]?.agents;
+        
+        if (!provider || !agentsResourceGroup) return;
+        
+        environments[envKey] = createVirtualNetworkForEnvironment(
+            config, 
+            envKey, 
+            agentsResourceGroup, 
+            provider
+        );
+    });
+
+    return { environments };
+}
+
+function createVirtualNetworkForEnvironment(
+    config: ProjectConfig,
+    environmentKey: string,
+    agentsResourceGroup: azure.resources.ResourceGroup,
+    provider: azure.Provider
 ): VirtualNetworkResult {
-    if (!resourceGroups.agents) {
-        throw new Error("Virtual network requires agents resource group");
-    }
-    
     // Calculate subnet CIDR blocks based on the address space and subnet sizes
     const addressSpace = config.addressSpace; // e.g., "10.0.10.0/24"
     const subnetsAndSizes = config.subnetsAndSizes; // { agents: 27, private_endpoints: 29 }
@@ -48,18 +75,18 @@ export function createVirtualNetwork(
     const privateEndpointsSubnetPrefix = `${privateEndpointsBase}/${subnetsAndSizes.private_endpoints}`;
     
     // Create the virtual network
-    const vnet = new azure.network.VirtualNetwork("vnet", {
-        resourceGroupName: resourceGroups.agents.name,
+    const vnet = new azure.network.VirtualNetwork(`${environmentKey}-vnet`, {
+        resourceGroupName: agentsResourceGroup.name,
         location: config.location,
         addressSpace: {
             addressPrefixes: [config.addressSpace],
         },
         enableVmProtection: true,
-    });
+    }, { provider });
 
     // Create agents subnet with container instance delegation
-    const agentsSubnet = new azure.network.Subnet("agents-subnet", {
-        resourceGroupName: resourceGroups.agents.name,
+    const agentsSubnet = new azure.network.Subnet(`${environmentKey}-agents-subnet`, {
+        resourceGroupName: agentsResourceGroup.name,
         virtualNetworkName: vnet.name,
         addressPrefix: agentSubnetPrefix,
         defaultOutboundAccess: false,
@@ -71,17 +98,17 @@ export function createVirtualNetwork(
         ],
         privateEndpointNetworkPolicies: "Disabled",
         privateLinkServiceNetworkPolicies: "Enabled",
-    }, { parent: vnet });
+    }, { parent: vnet, provider });
 
     // Create private endpoints subnet
-    const privateEndpointsSubnet = new azure.network.Subnet("private-endpoints-subnet", {
-        resourceGroupName: resourceGroups.agents.name,
+    const privateEndpointsSubnet = new azure.network.Subnet(`${environmentKey}-private-endpoints-subnet`, {
+        resourceGroupName: agentsResourceGroup.name,
         virtualNetworkName: vnet.name,
         addressPrefix: privateEndpointsSubnetPrefix,
         defaultOutboundAccess: false,
         privateEndpointNetworkPolicies: "Disabled",
         privateLinkServiceNetworkPolicies: "Enabled",
-    }, { parent: vnet });
+    }, { parent: vnet, provider });
 
     return {
         resourceId: vnet.id,

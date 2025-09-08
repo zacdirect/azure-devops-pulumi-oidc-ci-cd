@@ -3,6 +3,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
 import { ManagedIdentitiesResult } from "./managed-identities";
+import { ProvidersResult } from "./providers";
 
 export interface RoleAssignmentsResult {
     assignments: Record<string, azure.authorization.RoleAssignment>;
@@ -12,34 +13,46 @@ export function createRoleAssignments(
     config: ProjectConfig,
     resourceGroups: ResourceGroupsResult,
     managedIdentities: ManagedIdentitiesResult,
-    current: pulumi.Output<azure.authorization.GetClientConfigResult>
+    providers: ProvidersResult
 ): RoleAssignmentsResult {
     const assignments: Record<string, azure.authorization.RoleAssignment> = {};
 
     Object.entries(config.environments).forEach(([envKey]) => {
-        const targetResourceGroup = resourceGroups.environments[envKey];
-        if (!targetResourceGroup) return;
+        const provider = providers.environments[envKey];
+        const workloadResourceGroup = resourceGroups.environments[envKey]?.workload;
+        if (!provider || !workloadResourceGroup) return;
 
-        // Reader role for plan identity
-        const planIdentity = managedIdentities.userAssignedIdentities[`${envKey}-plan`];
-        if (planIdentity) {
-            assignments[`${envKey}-plan-reader`] = new azure.authorization.RoleAssignment(`${envKey}-plan-reader`, {
-                scope: targetResourceGroup.id,
-                roleDefinitionId: pulumi.interpolate`/subscriptions/${current.subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7`, // Reader role
-                principalId: planIdentity.principalId,
+        // Get provider configuration for this environment
+        const envConfig = config.environments[envKey];
+        const providerName = envConfig.provider || envKey;
+        const providerConfig = config.providers[providerName];
+        
+        if (!providerConfig) return;
+
+        // Reader role for preview identity
+        const previewIdentity = managedIdentities.userAssignedIdentities[`${envKey}-preview`];
+        if (previewIdentity) {
+            assignments[`${envKey}-preview-reader`] = new azure.authorization.RoleAssignment(`${envKey}-preview-reader`, {
+                scope: workloadResourceGroup.id,
+                roleDefinitionId: pulumi.output(providerConfig.subscriptionId || "").apply((subId: string) => 
+                    `/subscriptions/${subId}/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7` // Reader role
+                ),
+                principalId: previewIdentity.principalId,
                 principalType: "ServicePrincipal",
-            });
+            }, { provider });
         }
 
-        // Contributor role for apply identity
-        const applyIdentity = managedIdentities.userAssignedIdentities[`${envKey}-apply`];
-        if (applyIdentity) {
-            assignments[`${envKey}-apply-contributor`] = new azure.authorization.RoleAssignment(`${envKey}-apply-contributor`, {
-                scope: targetResourceGroup.id,
-                roleDefinitionId: pulumi.interpolate`/subscriptions/${current.subscriptionId}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c`, // Contributor role
-                principalId: applyIdentity.principalId,
+        // Contributor role for up identity
+        const upIdentity = managedIdentities.userAssignedIdentities[`${envKey}-up`];
+        if (upIdentity) {
+            assignments[`${envKey}-up-contributor`] = new azure.authorization.RoleAssignment(`${envKey}-up-contributor`, {
+                scope: workloadResourceGroup.id,
+                roleDefinitionId: pulumi.output(providerConfig.subscriptionId || "").apply((subId: string) => 
+                    `/subscriptions/${subId}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c` // Contributor role
+                ),
+                principalId: upIdentity.principalId,
                 principalType: "ServicePrincipal",
-            });
+            }, { provider });
         }
     });
 

@@ -61,12 +61,12 @@ export function createPipelines(
 
     // Service connection authorizations
     Object.entries(config.environments).forEach(([envKey, envConfig]) => {
-        ['plan', 'apply'].forEach(operation => {
+        ['preview', 'up'].forEach(operation => {
             const connectionKey = `${envKey}-${operation}`;
             
-            // For plan connections, both CI and CD pipelines need access
-            // For apply connections, only CD pipeline needs access
-            const pipelinesToAuthorize = operation === 'plan' ? ['ci', 'cd'] : ['cd'];
+            // For preview connections, both CI and CD pipelines need access
+            // For up connections, only CD pipeline needs access
+            const pipelinesToAuthorize = operation === 'preview' ? ['ci', 'cd'] : ['cd'];
             
             pipelinesToAuthorize.forEach(pipelineKey => {
                 if (serviceConnections.connections[connectionKey]) {
@@ -96,15 +96,20 @@ export function createPipelines(
     });
 
     // Agent pool authorizations (only if using self-hosted agents)
-    if (config.useSelfHostedAgents && agentPools.agentQueue) {
-        Object.entries(buildDefinitions).forEach(([pipelineKey, buildDefinition]) => {
-            const auth = new azuredevops.PipelineAuthorization(`agent-pool-auth-${pipelineKey}`, {
-                projectId: projectId,
-                resourceId: agentPools.agentQueue!.id,
-                type: "queue",
-                pipelineId: pulumi.output(buildDefinition.id).apply(id => parseInt(id)),
-            });
-            agentPoolAuthorizations.push(auth);
+    if (config.useSelfHostedAgents) {
+        Object.entries(config.environments).forEach(([envKey]) => {
+            const agentQueue = agentPools.agentQueues[envKey];
+            if (agentQueue) {
+                Object.entries(buildDefinitions).forEach(([pipelineKey, buildDefinition]) => {
+                    const auth = new azuredevops.PipelineAuthorization(`agent-pool-auth-${envKey}-${pipelineKey}`, {
+                        projectId: projectId,
+                        resourceId: agentQueue.id,
+                        type: "queue",
+                        pipelineId: pulumi.output(buildDefinition.id).apply(id => parseInt(id)),
+                    });
+                    agentPoolAuthorizations.push(auth);
+                });
+            }
         });
     }
 

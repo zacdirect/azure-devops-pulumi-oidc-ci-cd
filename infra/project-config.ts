@@ -27,12 +27,23 @@ export interface ResourceNameTemplates {
     groupName: string;
 }
 
+export interface ProviderConfig {
+    subscriptionId: string;
+    tenantId: string;
+    clientId: string;
+    clientSecret: string;
+    subscriptionName: string;
+    useOidc: boolean;
+}
+
 export interface EnvironmentConfig {
     displayOrder: number;
     displayName: string;
     hasApproval?: boolean;
     dependentEnvironment?: string;
     resourceGroupCreate?: boolean;
+    // Reference to a provider by name
+    provider?: string;
 }
 
 /**
@@ -40,6 +51,12 @@ export interface EnvironmentConfig {
  * Supports the standard dev/test/prod setup from the original Terraform project.
  */
 export type Environments = Record<string, EnvironmentConfig>;
+
+/**
+ * Provider configurations loaded from Pulumi.yaml.
+ * Each provider can be referenced by environments.
+ */
+export type Providers = Record<string, ProviderConfig>;
 
 
 
@@ -114,6 +131,7 @@ export class ProjectConfig extends pulumi.Config {
     public readonly agentPoolName: string;
     public readonly groupName: string;
     public readonly environments: Environments;
+    public readonly providers: Providers;
     public readonly organizationNamePrefix: string;
     public readonly versionControlSystemAuthenticationMethod: string;
     public readonly versionControlSystemGithubApplicationId: string;
@@ -180,6 +198,9 @@ export class ProjectConfig extends pulumi.Config {
             test: { displayOrder: 2, displayName: 'Test', dependentEnvironment: 'dev', resourceGroupCreate: true },
             prod: { displayOrder: 3, displayName: 'Production', hasApproval: true, dependentEnvironment: 'test', resourceGroupCreate: true }
         };
+
+        // Load providers from Pulumi configuration (defined in Pulumi.yaml)
+        this.providers = this.getObject<Providers>('providers') || {};
         
         this.organizationNamePrefix = layered('organizationNamePrefix', 'https://dev.azure.com');
         this.versionControlSystemAuthenticationMethod = layered('versionControlSystemAuthenticationMethod', 'pat');
