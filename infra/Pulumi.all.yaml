@@ -1,10 +1,8 @@
 config:
-  azure-native:location: NorthCentralUs
+  azure-native:location: CentralUs
   azure-devops-pulumi-oidc-ci-cd:versionControlSystemType: "azuredevops"
   azure-devops-pulumi-oidc-ci-cd:versionControlSystemPersonalAccessToken: "todo"
-  azure-devops-pulumi-oidc-ci-cd:versionControlSystemOrganization: "https://dev.azure.com/zacharycook/"
-  azure-devops-pulumi-oidc-ci-cd:versionControlSystemPoolName: "pulumi_should_create_this_pool_name"
-  azure-devops-pulumi-oidc-ci-cd:location: "northcentralus"
+  azure-devops-pulumi-oidc-ci-cd:location: "CentralUs"
   azure-devops-pulumi-oidc-ci-cd:organizationName: "zacharycook/"
   azure-devops-pulumi-oidc-ci-cd:personalAccessToken: "todo"
   azure-devops-pulumi-oidc-ci-cd:azureDevopsProject: "ZacDirect"

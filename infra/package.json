@@ -1,8 +1,17 @@
 {
     "name": "azure-devops-pulumi-oidc-ci-cd",
     "main": "index.ts",
+    "scripts": {
+        "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\"}' mocha -r ts-node/register test/**/*.test.ts"
+    },
     "devDependencies": {
+        "@types/chai": "^5.2.2",
+        "@types/mocha": "^10.0.10",
         "@types/node": "^18",
+        "chai": "^4.5.0",
+        "esm": "^3.2.25",
+        "mocha": "^11.7.2",
+        "ts-node": "^10.9.2",
         "typescript": "^5.0.0"
     },
     "dependencies": {

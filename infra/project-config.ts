@@ -27,13 +27,18 @@ export interface ResourceNameTemplates {
     groupName: string;
 }
 
+/**
+ * Provider configuration interface for Azure providers.
+ * All fields are optional - missing values will be filled from current Azure context.
+ * This supports partial configuration from ESC/Pulumi config with automatic defaults.
+ */
 export interface ProviderConfig {
-    subscriptionId: string;
-    tenantId: string;
-    clientId: string;
-    clientSecret: string;
-    subscriptionName: string;
-    useOidc: boolean;
+    subscriptionId?: string;
+    tenantId?: string;
+    clientId?: string;
+    clientSecret?: string;
+    subscriptionName?: string;
+    useOidc?: boolean;
 }
 
 export interface EnvironmentConfig {
@@ -42,8 +47,7 @@ export interface EnvironmentConfig {
     hasApproval?: boolean;
     dependentEnvironment?: string;
     resourceGroupCreate?: boolean;
-    // Reference to a provider by name
-    provider?: string;
+    // Provider name always matches environment name (1:1 relationship)
 }
 
 /**
@@ -62,7 +66,6 @@ export type Providers = Record<string, ProviderConfig>;
 
 export interface ProjectConfigInit {
     versionControlSystemType?: string;
-    versionControlSystemPersonalAccessToken?: string;
     versionControlSystemOrganization?: string;
     versionControlSystemPoolName?: string;
     location?: string;
@@ -92,9 +95,7 @@ export interface ProjectConfigInit {
 
 export class ProjectConfig extends pulumi.Config {
     public readonly versionControlSystemType: string;
-    public readonly versionControlSystemPersonalAccessToken: string;
     public readonly versionControlSystemOrganization: string;
-    public readonly versionControlSystemPoolName: string;
     public readonly location: string;
     public readonly organizationName: string;
     public readonly personalAccessToken: string;
@@ -143,12 +144,10 @@ export class ProjectConfig extends pulumi.Config {
         // Helper for layered config
         const layered = <T>(key: string, def: T): T => getConfigValue<T>(this, key, init as Record<string, unknown>, def);
 
-        this.versionControlSystemType = layered('versionControlSystemType', 'azuredevops');
-        this.versionControlSystemPersonalAccessToken = layered('versionControlSystemPersonalAccessToken', process.env['AZDO_PERSONAL_ACCESS_TOKEN'] || '');
-        this.versionControlSystemOrganization = layered('versionControlSystemOrganization', 'https://dev.azure.com/zacharycook/');
-        this.versionControlSystemPoolName = layered('versionControlSystemPoolName', 'pulumi_should_create_this_pool_name');
-        this.location = layered('location', 'northcentralus');
         this.organizationName = layered('organizationName', 'zacharycook/');
+        this.versionControlSystemType = layered('versionControlSystemType', 'azuredevops');
+        this.versionControlSystemOrganization = layered('versionControlSystemOrganization', `https://dev.azure.com/${this.organizationName}`);
+        this.location = layered('location', 'northcentralus');
         this.personalAccessToken = layered('personalAccessToken', process.env['AZDO_PERSONAL_ACCESS_TOKEN'] || '');
         this.azureDevopsProject = layered('azureDevopsProject', 'ZacDirect');
         this.azureDevopsCreateProject = layered('azureDevopsCreateProject', false);
@@ -199,14 +198,76 @@ export class ProjectConfig extends pulumi.Config {
             prod: { displayOrder: 3, displayName: 'Production', hasApproval: true, dependentEnvironment: 'test', resourceGroupCreate: true }
         };
 
-        // Load providers from Pulumi configuration (defined in Pulumi.yaml)
-        this.providers = this.getObject<Providers>('providers') || {};
+        // Load and resolve providers from Pulumi configuration (defined in Pulumi.yaml)
+        // This creates a resolved provider config for each environment using layered config
+        // ENFORCES 1:1 RELATIONSHIP: Only providers matching environment names are loaded
+        const rawProviders = this.getObject<Providers>('providers') || {};
+        this.providers = this.resolveProvidersConfig(rawProviders, init);
         
         this.organizationNamePrefix = layered('organizationNamePrefix', 'https://dev.azure.com');
         this.versionControlSystemAuthenticationMethod = layered('versionControlSystemAuthenticationMethod', 'pat');
         this.versionControlSystemGithubApplicationId = layered('versionControlSystemGithubApplicationId', '');
         this.versionControlSystemGithubApplicationInstallationId = layered('versionControlSystemGithubApplicationInstallationId', '');
         this.versionControlSystemGithubApplicationKey = layered('versionControlSystemGithubApplicationKey', '');
+    }
+
+    /**
+     * Resolve providers configuration using layered config approach.
+     * Enforces 1:1 relationship - each environment gets a provider with the same name.
+     * This simplifies configuration and ensures predictable provider mapping.
+     * 
+     * Layered config resolution order:
+     * 1. providers.<environmentName>.<property> (environment-specific)
+     * 2. providers.<property> (global provider default) 
+     * 3. Default values
+     * 
+     * Example Pulumi.yaml:
+     * ```yaml
+     * config:
+     *   providers:
+     *     subscriptionId: "default-sub-id"     # Global default for all environments
+     *     useOidc: true
+     *   providers.dev.subscriptionId: "dev-specific-sub-id"    # Dev environment override
+     *   providers.prod.tenantId: "prod-specific-tenant-id"     # Prod environment override
+     * ```
+     */
+    private resolveProvidersConfig(rawProviders: Providers, init?: ProjectConfigInit): Providers {
+        const resolvedProviders: Providers = {};
+        
+        // Helper for layered config specific to providers
+        const layeredProvider = <T>(environmentName: string, key: string, def?: T): T | undefined => {
+            // Try environment-specific config first (providers.<envName>.<property>)
+            const envSpecificKey = `providers.${environmentName}.${key}`;
+            const envValue = getConfigValue<T>(this, envSpecificKey, init as Record<string, unknown>, undefined);
+            if (envValue !== undefined) return envValue;
+            
+            // Try global provider config (providers.<property>)
+            const globalKey = `providers.${key}`;
+            const globalValue = getConfigValue<T>(this, globalKey, init as Record<string, unknown>, undefined);
+            if (globalValue !== undefined) return globalValue;
+            
+            // Fall back to default
+            return def;
+        };
+
+        // Create provider config for each environment (1:1 relationship)
+        Object.keys(this.environments).forEach(envName => {
+            // Get raw provider config as starting point (if it exists)
+            const rawProvider = rawProviders[envName] || {};
+            
+            // Resolve provider config using layered approach
+            // Provider name always matches environment name
+            resolvedProviders[envName] = {
+                subscriptionId: rawProvider.subscriptionId || layeredProvider<string>(envName, 'subscriptionId'),
+                tenantId: rawProvider.tenantId || layeredProvider<string>(envName, 'tenantId'),
+                clientId: rawProvider.clientId || layeredProvider<string>(envName, 'clientId'),
+                clientSecret: rawProvider.clientSecret || layeredProvider<string>(envName, 'clientSecret'),
+                subscriptionName: rawProvider.subscriptionName || layeredProvider<string>(envName, 'subscriptionName'),
+                useOidc: rawProvider.useOidc ?? layeredProvider<boolean>(envName, 'useOidc', true),
+            };
+        });
+
+        return resolvedProviders;
     }
 
     /**
@@ -245,5 +306,46 @@ export class ProjectConfig extends pulumi.Config {
     public getDependentEnvironment(environmentName: string): string | undefined {
         const env = this.getEnvironment(environmentName);
         return env?.dependentEnvironment;
+    }
+
+    /**
+     * Get provider configuration by name
+     */
+    public getProvider(name: string): ProviderConfig | undefined {
+        return this.providers[name];
+    }
+
+    /**
+     * Get all provider names
+     */
+    public getProviderNames(): string[] {
+        return Object.keys(this.providers);
+    }
+
+    /**
+     * Resolve a provider configuration by filling missing values from current Azure context.
+     * This enables flexible configuration where ESC/Pulumi config can provide any subset of values.
+     * Since providers are now pre-resolved in constructor, this mainly handles runtime context.
+     */
+    public resolveProvider(name: string): ProviderConfig {
+        const config = this.getProvider(name) || {};
+        
+        // Return the config as resolved - empty values will be filled at runtime by providers.ts
+        return {
+            subscriptionId: config.subscriptionId,
+            tenantId: config.tenantId, 
+            clientId: config.clientId,
+            clientSecret: config.clientSecret,
+            subscriptionName: config.subscriptionName,
+            useOidc: config.useOidc ?? true,
+        };
+    }
+
+    /**
+     * Resolve provider configuration for an environment.
+     * Uses 1:1 relationship - provider name is always the same as environment name.
+     */
+    public resolveEnvironmentProvider(environmentName: string): ProviderConfig {
+        return this.resolveProvider(environmentName);
     }
 }

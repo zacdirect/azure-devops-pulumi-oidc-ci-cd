@@ -14,5 +14,12 @@
     },
     "files": [
         "index.ts"
+    ],
+    "include": [
+        "**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "bin"
     ]
 }

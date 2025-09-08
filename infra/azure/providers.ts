@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
+import * as azure_native from "@pulumi/azure-native";
 import { ProjectConfig } from "../project-config";
 import { ExtendedAzureProvider } from "./provider";
-import { getConfigValue } from "../layered-config";
 
 export interface ProvidersResult {
     environments: Record<string, ExtendedAzureProvider>;
@@ -11,28 +11,36 @@ export interface ProvidersResult {
  * Create Azure providers for each environment based on configuration.
  * All Azure resources must be associated with a specific environment.
  * No default or management providers are used.
+ * 
+ * This function resolves provider configurations with current Azure context
+ * to support partial configuration from ESC/Pulumi config.
  */
 export function createProviders(config: ProjectConfig): ProvidersResult {
     const environmentProviders: Record<string, ExtendedAzureProvider> = {};
 
+    // Get current Azure context for runtime resolution as Pulumi Output
+    const currentConfig = pulumi.output(azure_native.authorization.getClientConfig());
+
     // Create environment-specific providers based on configuration
     Object.entries(config.environments).forEach(([envKey, envConfig]) => {
-        const providerName = envConfig.provider || envKey; // Default to environment name as provider name
+        // Provider name matches environment name (1:1 relationship)
+        const providerName = envKey;
         
-        if (!config.providers[providerName]) {
-            throw new Error(`Provider '${providerName}' referenced by environment '${envKey}' not found in configuration. All environments must have explicit provider configuration.`);
-        }
-
-        const providerConfig = config.providers[providerName];
+        // Resolve provider configuration with current Azure context
+        const resolvedConfig = config.resolveProvider(providerName);
         
-        environmentProviders[envKey] = new ExtendedAzureProvider(`azure-${envKey}`, {
-            subscriptionId: providerConfig.subscriptionId,
-            tenantId: providerConfig.tenantId,
-            clientId: providerConfig.clientId,
-            clientSecret: providerConfig.clientSecret,
-            useOidc: providerConfig.useOidc,
-            subscriptionName: providerConfig.subscriptionName || `${envKey} Subscription`,
-        });
+        // Use Pulumi outputs to resolve runtime values using current Azure context
+        // Pulumi providers accept Input<T> types which can be raw values or Output<T>
+        const finalConfig = {
+            subscriptionId: resolvedConfig.subscriptionId || currentConfig.subscriptionId,
+            tenantId: resolvedConfig.tenantId || currentConfig.tenantId,
+            clientId: resolvedConfig.clientId || currentConfig.clientId,
+            clientSecret: resolvedConfig.clientSecret, // Keep as-is, may be undefined
+            useOidc: resolvedConfig.useOidc,
+            subscriptionName: resolvedConfig.subscriptionName || pulumi.interpolate`subscription-${currentConfig.subscriptionId}`,
+        };
+        
+        environmentProviders[envKey] = new ExtendedAzureProvider(`azure-${envKey}`, finalConfig);
     });
 
     return {

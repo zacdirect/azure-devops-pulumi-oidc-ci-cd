@@ -4,10 +4,10 @@ import { ProjectConfig } from "../project-config";
 import { ProvidersResult } from "../azure/providers";
 
 export interface AzureEnvironmentDetails {
-    subscriptionId: string;
-    subscriptionName: string;
-    tenantId: string;
-    providerName: string;
+    subscriptionId: pulumi.Output<string>;
+    subscriptionName: pulumi.Output<string>;
+    tenantId: pulumi.Output<string>;
+    environmentName: string;
 }
 
 export interface EnvironmentsResult {
@@ -27,28 +27,26 @@ export function createEnvironments(
 
     // Create environments for each configured environment
     Object.entries(config.environments).forEach(([envKey, envConfig]) => {
-        // Get the Azure provider configuration for this environment
-        const providerName = envConfig.provider || envKey;
-        const providerConfig = config.providers[providerName];
+        // Get the Azure provider for this environment (1:1 relationship)
         const azureProvider = providers.environments[envKey];
         
-        if (!providerConfig || !azureProvider) {
-            throw new Error(`Provider configuration not found for environment '${envKey}' using provider '${providerName}'`);
+        if (!azureProvider) {
+            throw new Error(`No Azure provider found for environment '${envKey}'. Providers must match environment names.`);
         }
 
-        // Extract Azure details needed for Azure DevOps work
+        // Extract Azure details from the provider - no config awareness needed
         azureDetails[envKey] = {
-            subscriptionId: providerConfig.subscriptionId,
+            subscriptionId: azureProvider.subscriptionId,
             subscriptionName: azureProvider.subscriptionName,
-            tenantId: providerConfig.tenantId,
-            providerName: providerName,
+            tenantId: azureProvider.tenantId,
+            environmentName: envKey,
         };
 
         // Create the environment with Azure provider details
         const environment = new azuredevops.Environment(`environment-${envKey}`, {
             name: envKey,
             projectId: projectId,
-            description: `${envConfig.displayName} - Azure Subscription: ${azureProvider.subscriptionName}`,
+            description: pulumi.interpolate`${envConfig.displayName} - Azure Subscription: ${azureProvider.subscriptionName}`,
         });
 
         environments[envKey] = environment;
