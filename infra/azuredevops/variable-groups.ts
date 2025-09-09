@@ -12,7 +12,8 @@ export function createVariableGroups(
     config: ProjectConfig,
     projectId: pulumi.Input<string>,
     resourceGroups: ResourceGroupsResult,
-    storage: StorageResults
+    storage: StorageResults,
+    provider: azuredevops.Provider
 ): VariableGroupsResult {
     const variableGroups: Record<string, azuredevops.VariableGroup> = {};
 
@@ -30,16 +31,6 @@ export function createVariableGroups(
             allowAccess: true,
             variables: [
                 {
-                    name: "ADDITIONAL_ENVIRONMENT_VARIABLES",
-                    value: pulumi.jsonStringify({
-                        TF_VAR_resource_group_name: envResourceGroups.workload.name,
-                    }),
-                },
-                {
-                    name: "VAR_FILE_PATH",
-                    value: `./config/${envKey}.tfvars`,
-                },
-                {
                     name: "BACKEND_AZURE_STORAGE_ACCOUNT_NAME",
                     value: envStorage.artifactsStorage.name,
                 },
@@ -48,7 +39,7 @@ export function createVariableGroups(
                     value: envKey,
                 },
             ],
-        });
+        }, { provider });
 
         variableGroups[envKey] = variableGroup;
     });

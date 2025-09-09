@@ -1,7 +1,6 @@
 config:
   azure-native:location: CentralUs
   azure-devops-pulumi-oidc-ci-cd:versionControlSystemType: "azuredevops"
-  azure-devops-pulumi-oidc-ci-cd:versionControlSystemPersonalAccessToken: "todo"
   azure-devops-pulumi-oidc-ci-cd:location: "CentralUs"
   azure-devops-pulumi-oidc-ci-cd:organizationName: "zacharycook/"
   azure-devops-pulumi-oidc-ci-cd:personalAccessToken: "todo"
@@ -24,20 +23,23 @@ config:
   azure-devops-pulumi-oidc-ci-cd:resourceNameSequenceStart: 1
   azure-devops-pulumi-oidc-ci-cd:environments:
     dev:
-      display_order: 1
-      display_name: "Development"
+      displayOrder: 1
+      displayName: "Development"
       provider: "dev"  # Reference to dev provider
+      resourceGroupCreate: true
     test:
-      display_order: 2
-      display_name: "Test"
-      dependent_environment: "dev"
+      displayOrder: 2
+      displayName: "Test"
+      dependentEnvironment: "dev"
       provider: "test"  # Reference to test provider
+      resourceGroupCreate: true
     prod:
-      display_order: 3
-      display_name: "Production"
-      has_approval: true
-      dependent_environment: "test"
+      displayOrder: 3
+      displayName: "Production"
+      hasApproval: true
+      dependentEnvironment: "test"
       provider: "prod"  # Reference to prod provider
+      resourceGroupCreate: true
   azure-devops-pulumi-oidc-ci-cd:providers:
     dev:
       subscriptionName: "Development Subscription"

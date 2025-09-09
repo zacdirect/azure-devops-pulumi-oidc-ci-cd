@@ -9,14 +9,15 @@ export interface GroupsResult {
 
 export function createGroups(
     config: ProjectConfig,
-    projectId: pulumi.Input<string>
+    projectId: pulumi.Input<string>,
+    provider: azuredevops.Provider
 ): GroupsResult {
     // Create the approvers group
     const approversGroup = new azuredevops.Group("approvers-group", {
         scope: projectId,
         displayName: config.groupName,
         description: "Approvers for the Pulumi Up",
-    });
+    }, { provider });
 
     // If approvers are configured, get their user data and add them to the group
     let groupMembership: azuredevops.GroupMembership | undefined;
@@ -26,7 +27,7 @@ export function createGroups(
         const userDataPromises = Object.entries(config.approvers).map(([key, userPrincipalName]) =>
             azuredevops.getUsersOutput({
                 principalName: userPrincipalName,
-            }).apply(userData => {
+            }, { provider }).apply(userData => {
                 if (userData.users.length === 0) {
                     throw new Error(`No user account found for ${userPrincipalName}, check you have entered a valid user principal name...`);
                 }
@@ -43,7 +44,7 @@ export function createGroups(
         groupMembership = new azuredevops.GroupMembership("approvers-group-membership", {
             group: approversGroup.descriptor,
             members: allUserDescriptors,
-        });
+        }, { provider });
     }
 
     return {

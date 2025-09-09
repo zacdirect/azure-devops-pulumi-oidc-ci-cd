@@ -9,12 +9,12 @@ export interface ProjectResult {
     projectId: pulumi.Output<string>;
 }
 
-export function createProject(config: ProjectConfig): ProjectResult {
+export function createProject(config: ProjectConfig, provider: azuredevops.Provider): ProjectResult {
     if (config.azureDevopsCreateProject) {
         // Create new project
         const project = new azuredevops.Project("project", {
             name: config.projectName,
-        });
+        }, { provider });
 
         return {
             project,
@@ -25,7 +25,7 @@ export function createProject(config: ProjectConfig): ProjectResult {
         // Use existing project
         const projectData = azuredevops.getProjectOutput({
             name: config.azureDevopsProject,
-        });
+        }, { provider });
 
         return {
             projectData,

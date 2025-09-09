@@ -4,9 +4,9 @@ import { ProjectConfig } from "../project-config";
 import { ProvidersResult } from "../azure/providers";
 
 export interface AzureEnvironmentDetails {
-    subscriptionId: pulumi.Output<string>;
-    subscriptionName: pulumi.Output<string>;
-    tenantId: pulumi.Output<string>;
+    subscriptionId: string;
+    subscriptionName: string;
+    tenantId: string;
     environmentName: string;
 }
 
@@ -19,7 +19,8 @@ export interface EnvironmentsResult {
 export function createEnvironments(
     config: ProjectConfig,
     projectId: pulumi.Input<string>,
-    providers: ProvidersResult
+    providers: ProvidersResult,
+    azureDevOpsProvider: azuredevops.Provider
 ): EnvironmentsResult {
     const environments: Record<string, azuredevops.Environment> = {};
     const exclusiveLocks: Record<string, azuredevops.CheckExclusiveLock> = {};
@@ -46,8 +47,8 @@ export function createEnvironments(
         const environment = new azuredevops.Environment(`environment-${envKey}`, {
             name: envKey,
             projectId: projectId,
-            description: pulumi.interpolate`${envConfig.displayName} - Azure Subscription: ${azureProvider.subscriptionName}`,
-        });
+            description: `${envConfig.displayName} - Azure Subscription: ${azureProvider.subscriptionName}`,
+        }, { provider: azureDevOpsProvider });
 
         environments[envKey] = environment;
 
@@ -57,7 +58,7 @@ export function createEnvironments(
             targetResourceId: environment.id,
             targetResourceType: "environment",
             timeout: 43200, // 12 hours in seconds
-        });
+        }, { provider: azureDevOpsProvider });
 
         exclusiveLocks[envKey] = exclusiveLock;
     });

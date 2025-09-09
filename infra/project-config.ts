@@ -192,11 +192,36 @@ export class ProjectConfig extends pulumi.Config {
         this.groupName = layered('groupName', `group-${replacements.workload}-${replacements.environment}-approvers`);
 
         // Load environments from Pulumi configuration (defined in Pulumi.yaml)
-        this.environments = this.getObject<Environments>('environments') || {
+        // Merge loaded configuration with defaults to ensure all required properties are present
+        const defaultEnvironments: Environments = {
             dev: { displayOrder: 1, displayName: 'Development', resourceGroupCreate: true },
             test: { displayOrder: 2, displayName: 'Test', dependentEnvironment: 'dev', resourceGroupCreate: true },
             prod: { displayOrder: 3, displayName: 'Production', hasApproval: true, dependentEnvironment: 'test', resourceGroupCreate: true }
         };
+        
+        const loadedEnvironments = this.getObject<Environments>('environments') || {};
+        
+        // Merge each environment with its defaults to ensure all properties are present
+        this.environments = {};
+        for (const [envKey, defaultEnv] of Object.entries(defaultEnvironments)) {
+            const loadedEnv = loadedEnvironments[envKey] || {};
+            this.environments[envKey] = {
+                ...defaultEnv,
+                ...loadedEnv
+            };
+        }
+        
+        // Add any additional environments from configuration that aren't in defaults
+        for (const [envKey, loadedEnv] of Object.entries(loadedEnvironments)) {
+            if (!this.environments[envKey]) {
+                this.environments[envKey] = {
+                    ...loadedEnv,
+                    displayOrder: loadedEnv.displayOrder ?? 999,
+                    displayName: loadedEnv.displayName ?? envKey,
+                    resourceGroupCreate: loadedEnv.resourceGroupCreate ?? true
+                };
+            }
+        }
 
         // Load and resolve providers from Pulumi configuration (defined in Pulumi.yaml)
         // This creates a resolved provider config for each environment using layered config

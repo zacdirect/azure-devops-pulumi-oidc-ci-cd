@@ -1,3 +1,4 @@
+import * as pulumi from "@pulumi/pulumi";
 import * as azure from "@pulumi/azure-native";
 import { ProjectConfig } from "../project-config";
 import { ProvidersResult, getProviderForEnvironment } from "./providers";
@@ -11,17 +12,28 @@ export interface ResourceGroupsResult {
 }
 
 export function createResourceGroups(config: ProjectConfig, providers: ProvidersResult): ResourceGroupsResult {
+    pulumi.log.debug("Starting resource group creation function");
     const environments: Record<string, {
         identity: azure.resources.ResourceGroup;
         agents?: azure.resources.ResourceGroup;
         workload: azure.resources.ResourceGroup;
     }> = {};
 
+    pulumi.log.debug(`Available environments in config: ${Object.keys(config.environments)}`);
+    pulumi.log.debug(`Available environment providers: ${Object.keys(providers.environments)}`);
+
     // Create resource groups for each environment independently
     Object.entries(config.environments).forEach(([envKey, envConfig]) => {
-        if (!envConfig.resourceGroupCreate) return;
+        pulumi.log.debug(`Creating resource groups for environment '${envKey}', resourceGroupCreate: ${envConfig.resourceGroupCreate}`);
+        pulumi.log.debug(`Environment config for ${envKey}: ${JSON.stringify(envConfig)}`);
+        
+        if (!envConfig.resourceGroupCreate) {
+            pulumi.log.debug(`Skipping resource group creation for environment '${envKey}' - resourceGroupCreate is false/undefined`);
+            return;
+        }
         
         const envProvider = getProviderForEnvironment(providers, envKey);
+        pulumi.log.debug(`Provider found for environment '${envKey}': ${envProvider.subscriptionName}`);
         
         // State resource group for this environment
         const state = new azure.resources.ResourceGroup(`${config.resourceGroupStateName}-${envKey}`, {
@@ -51,6 +63,8 @@ export function createResourceGroups(config: ProjectConfig, providers: Providers
             agents,
             workload,
         };
+        
+        pulumi.log.debug(`Resource groups created for environment '${envKey}'`);
     });
 
     return {

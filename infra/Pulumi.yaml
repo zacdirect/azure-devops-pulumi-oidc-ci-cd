@@ -8,7 +8,12 @@ config:
   pulumi:tags:
     value:
       pulumi:template: azure-typescript
-  pulumi:disable-default-providers: ["*"]
+  pulumi:disable-default-providers:
+    value:
+      - azure-native
+      - azure
+      - azuread
+      - azuredevops
   pulumi:autonaming:
     value:
       # Global pattern for most resources
@@ -25,7 +30,6 @@ config:
             # Storage Accounts (need to be globally unique and lowercase)
             "azure-native:storage:StorageAccount":
               pattern: sto${name}${random(4)}
-              transform: lower
             # Virtual Networks
             "azure-native:network:VirtualNetwork":
               pattern: vnet-${name}

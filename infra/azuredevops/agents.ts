@@ -10,7 +10,8 @@ export interface AgentPoolsResult {
 
 export function createAgentPools(
     config: ProjectConfig,
-    projectId: pulumi.Input<string>
+    projectId: pulumi.Input<string>,
+    azureDevOpsProvider?: azuredevops.Provider
 ): AgentPoolsResult {
     const agentPools: Record<string, azuredevops.Pool> = {};
     const agentQueues: Record<string, azuredevops.Queue> = {};
@@ -34,12 +35,12 @@ export function createAgentPools(
             name: `${config.agentPoolName}-${envKey}`,
             autoProvision: false,
             autoUpdate: true,
-        });
+        }, { provider: azureDevOpsProvider });
 
         const agentQueue = new azuredevops.Queue(`${envKey}-agent-queue`, {
             projectId: projectId,
             agentPoolId: agentPool.id.apply(id => Number(id)),
-        });
+        }, { provider: azureDevOpsProvider });
 
         agentPools[envKey] = agentPool;
         agentQueues[envKey] = agentQueue;
