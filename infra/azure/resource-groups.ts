@@ -32,31 +32,31 @@ export function createResourceGroups(config: ProjectConfig, providers: Providers
             return;
         }
         
-        const envProvider = getProviderForEnvironment(providers, envKey);
-        pulumi.log.debug(`Provider found for environment '${envKey}': ${envProvider.subscriptionName}`);
-        
+        const provider = getProviderForEnvironment(providers, envKey).extendedProvider;
+        pulumi.log.debug(`Provider found for environment '${envKey}': ${provider.subscriptionName}`);
+
         // State resource group for this environment
         const state = new azure.resources.ResourceGroup(`${config.resourceGroupStateName}-${envKey}`, {
             location: config.location,
-        }, { provider: envProvider });
+        }, { provider });
 
         // Identity resource group for this environment
         const identity = new azure.resources.ResourceGroup(`${config.resourceGroupIdentityName}-${envKey}`, {
             location: config.location,
-        }, { provider: envProvider });
+        }, { provider });
 
         // Optional agents resource group for this environment
         let agents: azure.resources.ResourceGroup | undefined;
         if (config.useSelfHostedAgents) {
             agents = new azure.resources.ResourceGroup(`${config.resourceGroupAgentsName}-${envKey}`, {
                 location: config.location,
-            }, { provider: envProvider });
+            }, { provider });
         }
 
         // Workload resource group for this environment (where user resources go)
         const workload = new azure.resources.ResourceGroup(`${config.resourceNameWorkload}-${envKey}-${config.location}`, {
             location: config.location,
-        }, { provider: envProvider });
+        }, { provider });
 
         environments[envKey] = {
             identity,

@@ -4,6 +4,7 @@ import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
 import { VirtualNetworksResult } from "./virtual-network";
 import { ProvidersResult } from "./providers";
+import * as azuredevops from "@pulumi/azuredevops";
 
 export interface AgentsResult {
     module: azureAgents.Module;
@@ -22,7 +23,8 @@ export function createAgents(
     config: ProjectConfig,
     resourceGroups: ResourceGroupsResult,
     virtualNetworks: VirtualNetworksResult,
-    providers: ProvidersResult,
+    azureProviders: ProvidersResult,
+    azureDevOpsProvider: azuredevops.Provider,
     agentPoolNames: Record<string, pulumi.Input<string>>
 ): AgentsResults {
     const environments: Record<string, AgentsResult> = {};
@@ -30,9 +32,13 @@ export function createAgents(
     if (!config.useSelfHostedAgents) {
         return { environments };
     }
+    const pat = config.personalAccessToken || azureDevOpsProvider.personalAccessToken?.apply(token => {
+        if (!token) throw new Error("Personal Access Token is required");
+        return token;
+    }) || '';
 
     Object.entries(config.environments).forEach(([envKey]) => {
-        const provider = providers.environments[envKey];
+        const provider = new azureAgents.Provider(`${envKey}-azure-devops-agents-provider`, { azurerm: azureProviders.environments[envKey].classicProvider.terraformConfig() });
         const agentsResourceGroup = resourceGroups.environments[envKey]?.agents;
         const virtualNetwork = virtualNetworks.environments[envKey];
         const agentPoolName = agentPoolNames[envKey];
@@ -49,7 +55,7 @@ export function createAgents(
             compute_types: [config.selfHostedAgentType],
             container_instance_count: 4,
             version_control_system_type: "azuredevops",
-            version_control_system_personal_access_token: config.personalAccessToken,
+            version_control_system_personal_access_token: pat,
             version_control_system_organization: config.versionControlSystemOrganization,
             version_control_system_pool_name: agentPoolName,
             virtual_network_creation_enabled: false,

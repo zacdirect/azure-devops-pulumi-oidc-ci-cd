@@ -18,8 +18,8 @@ config:
   azure-devops-pulumi-oidc-ci-cd:repositoryPostfixTemplate: "zac-direct-template"
   azure-devops-pulumi-oidc-ci-cd:agentUseAvailabilityZones: false
   azure-devops-pulumi-oidc-ci-cd:resourceNameLocationShort: ""
-  azure-devops-pulumi-oidc-ci-cd:resourceNameWorkload: "dema"
-  azure-devops-pulumi-oidc-ci-cd:resourceNameEnvironment: "mgt"
+  azure-devops-pulumi-oidc-ci-cd:resourceNameWorkload: "wrk"
+  azure-devops-pulumi-oidc-ci-cd:resourceNameEnvironment: "m"
   azure-devops-pulumi-oidc-ci-cd:resourceNameSequenceStart: 1
   azure-devops-pulumi-oidc-ci-cd:environments:
     dev:

@@ -18,7 +18,7 @@ export function createRoleAssignments(
     const assignments: Record<string, azure.authorization.RoleAssignment> = {};
 
     Object.entries(config.environments).forEach(([envKey]) => {
-        const provider = providers.environments[envKey];
+        const provider = providers.environments[envKey].extendedProvider;
         const workloadResourceGroup = resourceGroups.environments[envKey]?.workload;
         if (!provider || !workloadResourceGroup) return;
 

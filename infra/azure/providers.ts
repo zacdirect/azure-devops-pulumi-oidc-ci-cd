@@ -1,11 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as azure_native from "@pulumi/azure-native";
+import * as azure from "@pulumi/azure";
 import { execSync } from "child_process";
 import { ProjectConfig } from "../project-config";
 import { ExtendedAzureProvider } from "./provider";
+import { AzureProviderPair } from "./provider-pair";
 
 export interface ProvidersResult {
-    environments: Record<string, ExtendedAzureProvider>;
+    environments: Record<string, AzureProviderPair>;
 }
 
 /**
@@ -55,7 +56,7 @@ function getCurrentAzureContext(): { subscriptionId?: string; tenantId?: string;
  */
 export function createProviders(config: ProjectConfig): ProvidersResult {
     pulumi.log.debug("Creating providers for environments...");
-    const environmentProviders: Record<string, ExtendedAzureProvider> = {};
+    const environmentProviders: Record<string, AzureProviderPair> = {};
 
     // Get current Azure context for runtime resolution from environment/CLI
     const currentContext = getCurrentAzureContext();
@@ -120,26 +121,67 @@ export function createProviders(config: ProjectConfig): ProvidersResult {
             throw new Error(`No valid authentication method found for environment '${envKey}'. Either configure OIDC (clientId + useOidc), service principal (clientId + clientSecret), or ensure Azure CLI is logged in.`);
         }
         
-        environmentProviders[envKey] = new ExtendedAzureProvider(`azure-${envKey}`, authConfig);
-        pulumi.log.debug(`Provider created for environment: ${envKey}`);
+        // Create the ExtendedAzureProvider (azure-native based)
+        const extendedProvider = new ExtendedAzureProvider(`azure-${envKey}`, authConfig);
+        
+        // Create the classic Azure provider (azure based) with the same configuration
+        // This provider is needed for terraform modules
+        const classicProviderArgs: azure.ProviderArgs = {
+            subscriptionId: authConfig.subscriptionId,
+            tenantId: authConfig.tenantId,
+            features: {}, // Required for azurerm provider
+        };
+        
+        // Add authentication properties if available
+        if (authConfig.clientId) {
+            classicProviderArgs.clientId = authConfig.clientId;
+        }
+        if (authConfig.clientSecret) {
+            classicProviderArgs.clientSecret = authConfig.clientSecret;
+        }
+        if (authConfig.useOidc) {
+            classicProviderArgs.useOidc = authConfig.useOidc;
+        }
+        
+        const classicProvider = new azure.Provider(`azure-classic-${envKey}`, classicProviderArgs);
+        
+        // Create the provider pair
+        environmentProviders[envKey] = {
+            extendedProvider,
+            classicProvider,
+        };
+        
+        pulumi.log.debug(`Provider pair created for environment: ${envKey}`);
     });
 
-    pulumi.log.debug(`Total providers created: ${Object.keys(environmentProviders).length}`);
+    pulumi.log.debug(`Total provider pairs created: ${Object.keys(environmentProviders).length}`);
     return {
         environments: environmentProviders,
     };
 }
 
 /**
- * Helper function to get the provider for a specific environment
+ * Helper function to get the provider pair for a specific environment
  */
 export function getProviderForEnvironment(
     providers: ProvidersResult, 
     environmentName: string
-): ExtendedAzureProvider {
-    const provider = providers.environments[environmentName];
-    if (!provider) {
-        throw new Error(`No provider found for environment '${environmentName}'. All environments must have explicit provider configuration.`);
+): AzureProviderPair {
+    const providerPair = providers.environments[environmentName];
+    if (!providerPair) {
+        throw new Error(`No provider pair found for environment '${environmentName}'. All environments must have explicit provider configuration.`);
     }
-    return provider;
+    return providerPair;
+}
+
+/**
+ * Helper function to get just the ExtendedAzureProvider for a specific environment
+ * (for backward compatibility with existing code)
+ */
+export function getExtendedProviderForEnvironment(
+    providers: ProvidersResult, 
+    environmentName: string
+): ExtendedAzureProvider {
+    const providerPair = getProviderForEnvironment(providers, environmentName);
+    return providerPair.extendedProvider;
 }

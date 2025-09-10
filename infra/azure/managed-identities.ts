@@ -56,7 +56,7 @@ export function createManagedIdentities(
         
         ['preview', 'up'].forEach(operation => {
             const identityKey = `${envKey}-${operation}`;
-            const envProvider = getProviderForEnvironment(providers, envKey);
+            const provider = getProviderForEnvironment(providers, envKey).extendedProvider;
             const envResourceGroups = resourceGroups.environments[envKey];
 
             pulumi.log.debug(`Checking resource groups for environment: ${envKey}`);
@@ -75,7 +75,7 @@ export function createManagedIdentities(
             userAssignedIdentities[identityKey] = new azure.managedidentity.UserAssignedIdentity(`${config.resourceNameWorkload}-${envKey}-${operation}`, {
                 resourceGroupName: envResourceGroups.identity.name,
                 location: config.location,
-            }, { provider: envProvider });
+            }, { provider });
 
             // Create Federated Identity Credential
             // Logical name will be transformed by autonaming rules: fic-${name}
@@ -85,7 +85,7 @@ export function createManagedIdentities(
                 audiences: ["api://AzureADTokenExchange"],
                 issuer: pulumi.interpolate`https://vstoken.dev.azure.com/${azureDevOpsOrganization}`,
                 subject: pulumi.interpolate`sc://${azureDevOpsOrganization}/${azureDevOpsProject}/service-connection-${identityKey}`,
-            }, { provider: envProvider });
+            }, { provider });
         });
     });
 

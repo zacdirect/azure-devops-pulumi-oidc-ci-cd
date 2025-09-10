@@ -41,7 +41,7 @@ export function createVirtualNetworks(
             config, 
             envKey, 
             agentsResourceGroup, 
-            provider
+            provider.extendedProvider
         );
     });
 
@@ -108,7 +108,7 @@ function createVirtualNetworkForEnvironment(
         defaultOutboundAccess: false,
         privateEndpointNetworkPolicies: "Disabled",
         privateLinkServiceNetworkPolicies: "Enabled",
-    }, { parent: vnet, provider });
+    }, { parent: vnet });
 
     return {
         resourceId: vnet.id,

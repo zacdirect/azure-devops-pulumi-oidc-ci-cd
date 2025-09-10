@@ -50,26 +50,40 @@ const agentPools = createAgentPools(config, project.projectId, azureDevOpsProvid
 // const serviceConnections = createServiceConnections(config, managedIdentities, project.projectId, repositories, groups, environments);
 
 // Create agents after we have dependencies (agent pools, virtual networks, resource groups)
-const agents = createAgents(config, resourceGroups, virtualNetworks, providers, agentPools.poolNames);
+const agents = createAgents(config, resourceGroups, virtualNetworks, providers, azureDevOpsProvider.provider, agentPools.poolNames);
 
 // Create pipelines with all dependencies
 // const pipelines = createPipelines(config, project.projectId, repositories, environments, serviceConnections, agentPools);
 // const repositoryFiles = createRepositoryFiles(config, repositories);
 const variableGroups = createVariableGroups(config, project.projectId, resourceGroups, storage, azureDevOpsProvider.provider);
 
-// Export important values for the first environment (dev typically)
-const firstEnvironmentKey = Object.keys(config.environments)[0];
-const firstEnvironmentProvider = providers.environments[firstEnvironmentKey];
 
-export const subscriptionId = firstEnvironmentProvider.subscriptionName;
-export const tenantId = pulumi.output("tenant-from-provider-config");
-
-// Export target resource group (first environment that exists)
-const firstEnvironmentResourceGroups = resourceGroups.environments[firstEnvironmentKey];
-if (!firstEnvironmentResourceGroups) {
-    throw new Error(`No resource groups found for environment '${firstEnvironmentKey}'`);
-}
-export const targetResourceGroupId = firstEnvironmentResourceGroups.workload.id;
+// Export comprehensive resource group information for all environments
+export const resourceGroupDetails = pulumi.all([resourceGroups]).apply(([rgs]) =>
+    Object.entries(rgs.environments).flatMap(([envKey, envResourceGroups]) => [
+        {
+            environment: envKey,
+            type: 'identity',
+            name: envResourceGroups.identity.name,
+            id: envResourceGroups.identity.id,
+            workloadId: envResourceGroups.workload.id,
+        },
+        ...(envResourceGroups.agents ? [{
+            environment: envKey,
+            type: 'agents',
+            name: envResourceGroups.agents.name,
+            id: envResourceGroups.agents.id,
+            workloadId: envResourceGroups.workload.id,
+        }] : []),
+        {
+            environment: envKey,
+            type: 'workload',
+            name: envResourceGroups.workload.name,
+            id: envResourceGroups.workload.id,
+            workloadId: envResourceGroups.workload.id,
+        },
+    ])
+);
 
 // Export dev managed identity info (assuming dev environment exists)
 const devPreviewIdentity = managedIdentities.userAssignedIdentities['dev-preview'];

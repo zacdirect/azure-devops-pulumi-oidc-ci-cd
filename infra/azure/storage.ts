@@ -302,7 +302,7 @@ export function createStorage(
                     defaultAction: "Allow",
                 },
             },
-            { provider }
+            { provider: provider.extendedProvider }
         );
 
         environments[envKey] = {

@@ -29,7 +29,7 @@ export function createEnvironments(
     // Create environments for each configured environment
     Object.entries(config.environments).forEach(([envKey, envConfig]) => {
         // Get the Azure provider for this environment (1:1 relationship)
-        const azureProvider = providers.environments[envKey];
+        const azureProvider = providers.environments[envKey].extendedProvider;
         
         if (!azureProvider) {
             throw new Error(`No Azure provider found for environment '${envKey}'. Providers must match environment names.`);
