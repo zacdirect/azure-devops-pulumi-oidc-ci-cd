@@ -79,7 +79,9 @@ export function createManagedIdentities(
 
             // Create Federated Identity Credential
             // Logical name will be transformed by autonaming rules: fic-${name}
-            federatedCredentials[identityKey] = new azure.managedidentity.FederatedIdentityCredential(`${config.azureDevopsProject}-${envKey}-${operation}`, {
+            // Sanitize the project name to meet Azure naming requirements (alphanumeric, hyphens, underscores only)
+            const sanitizedProjectName = config.azureDevopsProject.replace(/[^a-zA-Z0-9-_]/g, '-');
+            federatedCredentials[identityKey] = new azure.managedidentity.FederatedIdentityCredential(`${sanitizedProjectName}-${envKey}-${operation}`, {
                 resourceGroupName: envResourceGroups.identity.name,
                 resourceName: userAssignedIdentities[identityKey].name,
                 audiences: ["api://AzureADTokenExchange"],

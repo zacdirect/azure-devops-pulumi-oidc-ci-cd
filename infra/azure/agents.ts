@@ -38,7 +38,7 @@ export function createAgents(
     }) || '';
 
     Object.entries(config.environments).forEach(([envKey]) => {
-        const provider = new azureAgents.Provider(`${envKey}-azure-devops-agents-provider`, { azurerm: azureProviders.environments[envKey].classicProvider.terraformConfig() });
+        const provider = new azureAgents.Provider(`${envKey}-azure-devops-agents-provider`, { azurerm: azureProviders.environments[envKey].classicProvider.terraformConfig().result });
         const agentsResourceGroup = resourceGroups.environments[envKey]?.agents;
         const virtualNetwork = virtualNetworks.environments[envKey];
         const agentPoolName = agentPoolNames[envKey];

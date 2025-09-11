@@ -2,9 +2,8 @@ config:
   azure-native:location: CentralUs
   azure-devops-pulumi-oidc-ci-cd:versionControlSystemType: "azuredevops"
   azure-devops-pulumi-oidc-ci-cd:location: "CentralUs"
-  azure-devops-pulumi-oidc-ci-cd:organizationName: "zacharycook/"
-  azure-devops-pulumi-oidc-ci-cd:personalAccessToken: "todo"
-  azure-devops-pulumi-oidc-ci-cd:azureDevopsProject: "ZacDirect"
+  azure-devops-pulumi-oidc-ci-cd:organizationName: "zacharycook"
+  azure-devops-pulumi-oidc-ci-cd:azureDevopsProject: "Zac Direct"
   azure-devops-pulumi-oidc-ci-cd:azureDevopsCreateProject: false
   azure-devops-pulumi-oidc-ci-cd:useSelfHostedAgents: true
   azure-devops-pulumi-oidc-ci-cd:selfHostedAgentType: "azure_container_instance"
@@ -12,7 +11,8 @@ config:
   azure-devops-pulumi-oidc-ci-cd:subnetsAndSizes:
     agents: 27
     private_endpoints: 29
-  azure-devops-pulumi-oidc-ci-cd:approvers: {}
+  # Empty approvers object - use null or omit entirely for no approvers
+  # azure-devops-pulumi-oidc-ci-cd:approvers:
   azure-devops-pulumi-oidc-ci-cd:exampleModulePath: "../zac-direct-modules"
   azure-devops-pulumi-oidc-ci-cd:repositoryPostfix: "zacdirect"
   azure-devops-pulumi-oidc-ci-cd:repositoryPostfixTemplate: "zac-direct-template"

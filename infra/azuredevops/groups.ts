@@ -22,14 +22,44 @@ export function createGroups(
     // If approvers are configured, get their user data and add them to the group
     let groupMembership: azuredevops.GroupMembership | undefined;
     
-    if (Object.keys(config.approvers).length > 0) {
+    // Handle different ways approvers might be configured (undefined, empty object, string)
+    let approversConfig: Record<string, string> = {};
+    
+    if (config.approvers === undefined || config.approvers === null) {
+        // No approvers configured - this is valid
+        approversConfig = {};
+    } else if (typeof config.approvers === 'string') {
+        // Handle case where YAML {} gets parsed as string "{}"
+        const approversString = config.approvers as string;
+        if (approversString === '{}' || approversString.trim() === '') {
+            approversConfig = {};
+        } else {
+            throw new Error(`Invalid approvers configuration: got string '${approversString}'. Expected an object with user principal names or leave empty for no approvers.`);
+        }
+    } else if (typeof config.approvers === 'object') {
+        // Normal case - approvers is an object
+        approversConfig = config.approvers;
+    } else {
+        throw new Error(`Invalid approvers configuration: expected object, got ${typeof config.approvers}. Check your Pulumi configuration YAML syntax.`);
+    }
+    
+    const approversEntries = Object.entries(approversConfig);
+    
+    // Validate each approver entry
+    for (const [key, userPrincipalName] of approversEntries) {
+        if (typeof userPrincipalName !== 'string' || userPrincipalName.trim() === '') {
+            throw new Error(`Invalid approver configuration: key '${key}' has invalid value '${userPrincipalName}'. Expected a valid user principal name string.`);
+        }
+    }
+    
+    if (approversEntries.length > 0) {
         // Get user data for all approvers
-        const userDataPromises = Object.entries(config.approvers).map(([key, userPrincipalName]) =>
+        const userDataPromises = approversEntries.map(([key, userPrincipalName]) =>
             azuredevops.getUsersOutput({
                 principalName: userPrincipalName,
             }, { provider }).apply(userData => {
                 if (userData.users.length === 0) {
-                    throw new Error(`No user account found for ${userPrincipalName}, check you have entered a valid user principal name...`);
+                    throw new Error(`No user account found for ${userPrincipalName}. Check that this is a valid user principal name in your Azure DevOps organization.`);
                 }
                 return userData.users.map(user => user.descriptor);
             })
@@ -44,7 +74,10 @@ export function createGroups(
         groupMembership = new azuredevops.GroupMembership("approvers-group-membership", {
             group: approversGroup.descriptor,
             members: allUserDescriptors,
-        }, { provider });
+        }, { 
+            provider,
+            dependsOn: [approversGroup]
+        });
     }
 
     return {
