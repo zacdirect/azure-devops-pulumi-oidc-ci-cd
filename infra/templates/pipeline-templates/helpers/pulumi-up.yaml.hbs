@@ -1,0 +1,26 @@
+# Pulumi Up Helper Template
+parameters:
+  - name: environmentName
+    type: string
+  - name: serviceConnectionName
+    type: string
+  - name: variableGroupName
+    type: string
+  - name: rootModuleFolderRelativePath
+    type: string
+    default: '.'
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Pulumi Up - {{{azureDevOpsSyntax.parametersEnvironmentName}}}'
+    inputs:
+      azureSubscription: {{{azureDevOpsSyntax.parametersServiceConnectionName}}}
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      workingDirectory: {{{azureDevOpsSyntax.systemDefaultWorkingDirectory}}}/{{{azureDevOpsSyntax.parametersRootModulePath}}}
+      inlineScript: |
+        export PULUMI_ACCESS_TOKEN={{{azureDevOpsSyntax.pulumiAccessToken}}}
+        pulumi stack select {{{azureDevOpsSyntax.parametersEnvironmentName}}} || pulumi stack init {{{azureDevOpsSyntax.parametersEnvironmentName}}}
+        pulumi up --yes --non-interactive
+    env:
+      PULUMI_ACCESS_TOKEN: {{{azureDevOpsSyntax.pulumiAccessToken}}}

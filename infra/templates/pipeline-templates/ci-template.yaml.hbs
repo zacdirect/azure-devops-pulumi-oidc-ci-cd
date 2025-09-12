@@ -1,0 +1,65 @@
+---
+parameters:
+  - name: environments
+    type: object
+    default: []
+  - name: rootModuleFolderRelativePath
+    default: '.'
+  - name: pulumiCliVersion
+    default: 'latest'
+
+stages:
+  - stage: validate
+    displayName: Validation Pulumi
+    jobs:
+      - job: validate
+        displayName: Validate Pulumi
+        pool:
+{{#if useSelfHostedAgents}}
+          name: Self-Hosted Agents
+{{else}}
+          vmImage: ubuntu-latest
+{{/if}}
+        steps:
+          - template: helpers/pulumi-installer.yaml
+            parameters:
+              pulumiCliVersion: {{{azureDevOpsSyntax.parameterspulumiCliVersion}}}
+          
+          - script: |
+              npm ci
+            displayName: 'Install dependencies'
+            workingDirectory: {{{azureDevOpsSyntax.systemDefaultWorkingDirectory}}}/infra
+          
+          - script: |
+              pulumi preview --diff --non-interactive
+            displayName: 'Pulumi Preview'
+            workingDirectory: {{{azureDevOpsSyntax.systemDefaultWorkingDirectory}}}/infra
+            env:
+              PULUMI_ACCESS_TOKEN: {{{azureDevOpsSyntax.pulumiAccessToken}}}
+
+{{#each environments}}
+  - stage: preview_{{@key}}
+    displayName: Preview {{this.displayName}}
+    dependsOn: validate
+    condition: succeeded()
+    jobs:
+      - job: preview
+        displayName: Preview {{this.displayName}}
+        pool:
+{{#if ../useSelfHostedAgents}}
+          name: {{this.agentPoolName}}
+{{else}}
+          vmImage: {{this.agentPoolName}}
+{{/if}}
+        steps:
+          - template: helpers/pulumi-installer.yaml
+            parameters:
+              pulumiCliVersion: {{{../azureDevOpsSyntax.parameterspulumiCliVersion}}}
+          
+          - template: helpers/pulumi-preview.yaml
+            parameters:
+              environmentName: {{@key}}
+              serviceConnectionName: {{this.serviceConnectionNamePulumiPreview}}
+              variableGroupName: {{this.variableGroupName}}
+              rootModuleFolderRelativePath: {{{../azureDevOpsSyntax.parametersRootModulePath}}}
+{{/each}}

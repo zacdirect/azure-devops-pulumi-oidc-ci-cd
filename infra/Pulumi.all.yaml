@@ -1,0 +1,62 @@
+config:
+  azure-native:location: CentralUs
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemType: "azuredevops"
+  azure-devops-pulumi-oidc-ci-cd:location: "CentralUs"
+  azure-devops-pulumi-oidc-ci-cd:organizationName: "zacharycook"
+  azure-devops-pulumi-oidc-ci-cd:azureDevopsProject: "Zac Direct"
+  azure-devops-pulumi-oidc-ci-cd:azureDevopsCreateProject: false
+  azure-devops-pulumi-oidc-ci-cd:useSelfHostedAgents: true
+  azure-devops-pulumi-oidc-ci-cd:selfHostedAgentType: "azure_container_instance"
+  azure-devops-pulumi-oidc-ci-cd:addressSpace: "10.0.10.0/24"
+  azure-devops-pulumi-oidc-ci-cd:subnetsAndSizes:
+    agents: 27
+    private_endpoints: 29
+  # Empty approvers object - use null or omit entirely for no approvers
+  # azure-devops-pulumi-oidc-ci-cd:approvers:
+  azure-devops-pulumi-oidc-ci-cd:exampleModulePath: "../zac-direct-modules"
+  azure-devops-pulumi-oidc-ci-cd:repositoryPostfix: "zacdirect"
+  azure-devops-pulumi-oidc-ci-cd:repositoryPostfixTemplate: "zac-direct-template"
+  azure-devops-pulumi-oidc-ci-cd:agentUseAvailabilityZones: false
+  azure-devops-pulumi-oidc-ci-cd:resourceNameLocationShort: ""
+  azure-devops-pulumi-oidc-ci-cd:resourceNameWorkload: "wrk"
+  azure-devops-pulumi-oidc-ci-cd:resourceNameEnvironment: "m"
+  azure-devops-pulumi-oidc-ci-cd:resourceNameSequenceStart: 1
+  azure-devops-pulumi-oidc-ci-cd:environments:
+    dev:
+      displayOrder: 1
+      displayName: "Development"
+      provider: "dev"  # Reference to dev provider
+      resourceGroupCreate: true
+    test:
+      displayOrder: 2
+      displayName: "Test"
+      dependentEnvironment: "dev"
+      provider: "test"  # Reference to test provider
+      resourceGroupCreate: true
+    prod:
+      displayOrder: 3
+      displayName: "Production"
+      hasApproval: true
+      dependentEnvironment: "test"
+      provider: "prod"  # Reference to prod provider
+      resourceGroupCreate: true
+  azure-devops-pulumi-oidc-ci-cd:providers:
+    dev:
+      subscriptionName: "Development Subscription"
+      # Development environment provider
+      # These could come from ESC dynamic login credentials:
+      # subscriptionId: "${azure.subscriptionId}"
+      # tenantId: "${azure.tenantId}"
+      # clientId: "${azure.clientId}"
+      # useOidc: true
+    test:
+      subscriptionName: "Test Subscription"
+      # Test environment provider
+    prod:
+      subscriptionName: "Production Subscription"
+      # Production environment provider
+  azure-devops-pulumi-oidc-ci-cd:organizationNamePrefix: "https://dev.azure.com"
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemAuthenticationMethod: "pat"
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemGithubApplicationId: ""
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemGithubApplicationInstallationId: ""
+  azure-devops-pulumi-oidc-ci-cd:versionControlSystemGithubApplicationKey: ""

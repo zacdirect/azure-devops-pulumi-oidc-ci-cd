@@ -1,0 +1,38 @@
+---
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: {{projectName}}/{{templateRepositoryName}}
+
+parameters:
+  - name: pulumiCliVersion
+    displayName: Pulumi CLI Version
+    type: string
+    default: 'latest'
+
+lockBehavior: sequential
+
+extends:
+  template: pipelines/templates/ci-template.yaml@templates
+  parameters:
+    rootModuleFolderRelativePath: {{rootModuleFolderRelativePath}}
+    pulumiCliVersion: {{{azureDevOpsSyntax.coalesceParameters}}}
+    environments: 
+{{#each environments}}
+      - name: {{@key}}
+        displayName: {{this.displayName}}
+        serviceConnectionNamePulumiPreview: {{@key}}-preview
+        serviceConnectionNamePulumiUp: {{@key}}-up
+        variableGroupName: {{@key}}
+        agentPoolType: {{#if ../useSelfHostedAgents}}self-hosted{{else}}microsoft-hosted{{/if}}
+        agentPoolName: {{#if ../useSelfHostedAgents}}Self-Hosted Agents{{else}}ubuntu-latest{{/if}}
+        environmentName: {{@key}}
+        dependentEnvironment: {{#unless @first}}{{#each ../environments}}{{#if @first}}{{@key}}{{/if}}{{/each}}{{/unless}}
+{{/each}}
