@@ -4,6 +4,7 @@ import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
 import { VirtualNetworksResult } from "./virtual-network";
 import { ProvidersResult } from "./providers";
+import { getStandardTags } from "../shared/common";
 
 // Network rules configuration
 export interface NetworkRules {

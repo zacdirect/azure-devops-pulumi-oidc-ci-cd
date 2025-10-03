@@ -4,6 +4,8 @@ import { execSync } from "child_process";
 import { ProjectConfig } from "../project-config";
 import { ExtendedAzureProvider } from "./provider";
 import { AzureProviderPair } from "./provider-pair";
+import { ConfigurationValidator } from "../shared/validation";
+import { ProviderNotFoundError } from "../shared/errors";
 
 export interface ProvidersResult {
     environments: Record<string, AzureProviderPair>;
@@ -70,6 +72,13 @@ export function createProviders(config: ProjectConfig): ProvidersResult {
         
         // Resolve provider configuration with current Azure context
         const resolvedConfig = config.resolveProvider(providerName);
+        
+        // Validate provider configuration before creating providers
+        ConfigurationValidator.validateAzureProvider(resolvedConfig, envKey);
+        
+        // Determine authentication method
+        const authMethod = ConfigurationValidator.determineAuthMethod(resolvedConfig, envKey);
+        pulumi.log.debug(`Authentication method for '${envKey}': ${authMethod}`);
         
         // Determine authentication method:
         // - If we're in Azure DevOps CI/CD (has OIDC token), use OIDC authentication
@@ -169,7 +178,7 @@ export function getProviderForEnvironment(
 ): AzureProviderPair {
     const providerPair = providers.environments[environmentName];
     if (!providerPair) {
-        throw new Error(`No provider pair found for environment '${environmentName}'. All environments must have explicit provider configuration.`);
+        throw new ProviderNotFoundError(environmentName);
     }
     return providerPair;
 }

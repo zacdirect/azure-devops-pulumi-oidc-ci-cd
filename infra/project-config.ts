@@ -7,6 +7,19 @@ export interface SubnetsAndSizes {
     private_endpoints: number;
 }
 
+export interface SecurityConfig {
+    enableResourceTags: boolean;
+    requiredTags: Record<string, string>;
+    enablePrivateEndpoints: boolean;
+    allowPublicAccess: boolean;
+}
+
+export interface ServiceConnectionConfig {
+    oidcAudience: string;
+    approvalTimeoutHours: number;
+    exclusiveLockTimeoutHours: number;
+}
+
 export interface ResourceNameTemplates {
     resourceGroupStateName: string;
     resourceGroupAgentsName: string;
@@ -138,6 +151,9 @@ export class ProjectConfig extends pulumi.Config {
     public readonly versionControlSystemGithubApplicationId: string;
     public readonly versionControlSystemGithubApplicationInstallationId: string;
     public readonly versionControlSystemGithubApplicationKey: string;
+    public readonly securityConfig: SecurityConfig;
+    public readonly serviceConnectionConfig: ServiceConnectionConfig;
+    public readonly defaultTags: Record<string, string>;
 
     constructor(init?: ProjectConfigInit) {
         super('azure-devops-pulumi-oidc-ci-cd');
@@ -190,6 +206,31 @@ export class ProjectConfig extends pulumi.Config {
         this.repositoryTemplateName = layered('repositoryTemplateName', `${replacements.workload}-${replacements.environment}-template`);
         this.agentPoolName = layered('agentPoolName', `agent-pool-${replacements.workload}-${replacements.environment}`);
         this.groupName = layered('groupName', `group-${replacements.workload}-${replacements.environment}-approvers`);
+
+        // Initialize security configuration
+        this.securityConfig = layered('securityConfig', {
+            enableResourceTags: true,
+            requiredTags: {},
+            enablePrivateEndpoints: true,
+            allowPublicAccess: false
+        });
+
+        // Initialize service connection configuration
+        this.serviceConnectionConfig = layered('serviceConnectionConfig', {
+            oidcAudience: 'api://AzureADTokenExchange',
+            approvalTimeoutHours: 12,
+            exclusiveLockTimeoutHours: 12
+        });
+
+        // Initialize default tags (computed after basic config is loaded)
+        this.defaultTags = {
+            Environment: this.resourceNameEnvironment,
+            Workload: this.resourceNameWorkload,
+            ManagedBy: 'Pulumi',
+            Project: this.azureDevopsProject,
+            CreatedDate: new Date().toISOString().split('T')[0],
+            ...this.securityConfig.requiredTags
+        };
 
         // Load environments from Pulumi configuration (defined in Pulumi.yaml)
         // Merge loaded configuration with defaults to ensure all required properties are present

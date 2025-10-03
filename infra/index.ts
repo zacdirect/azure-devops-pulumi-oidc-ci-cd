@@ -19,7 +19,6 @@ import { createEnvironments } from "./azuredevops/environments";
 import { createGroups } from "./azuredevops/groups";
 import { createAgentPools } from "./azuredevops/agents";
 import { createPipelines } from "./azuredevops/pipelines";
-// import { createRepositories } from "./azuredevops/repositories";
 import { createRepositoryFiles } from "./azuredevops/repository-files";
 import { createVariableGroups } from "./azuredevops/variable-groups";
 
@@ -45,16 +44,11 @@ const storage = createStorage(config, resourceGroups, virtualNetworks, providers
 const project = createProject(config, azureDevOpsProvider.provider);
 const environments = createEnvironments(config, project.projectId, providers, azureDevOpsProvider.provider);
 const groups = createGroups(config, project.projectId, azureDevOpsProvider.provider);
-// const repositories = createRepositories(config, project.projectId, environments, azureDevOpsProvider.provider);
 const agentPools = createAgentPools(config, project.projectId, azureDevOpsProvider.provider);
-// const serviceConnections = createServiceConnections(config, managedIdentities, project.projectId, repositories, groups, environments);
 
 // Create agents after we have dependencies (agent pools, virtual networks, resource groups)
 const agents = createAgents(config, resourceGroups, virtualNetworks, providers, azureDevOpsProvider.provider, agentPools.poolNames);
 
-// Create pipelines with all dependencies
-// const pipelines = createPipelines(config, project.projectId, repositories, environments, serviceConnections, agentPools);
-// const repositoryFiles = createRepositoryFiles(config, repositories);
 const variableGroups = createVariableGroups(config, project.projectId, resourceGroups, storage, azureDevOpsProvider.provider);
 
 

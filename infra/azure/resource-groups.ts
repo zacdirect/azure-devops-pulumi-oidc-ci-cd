@@ -2,6 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as azure from "@pulumi/azure-native";
 import { ProjectConfig } from "../project-config";
 import { ProvidersResult, getProviderForEnvironment } from "./providers";
+import { getStandardTags } from "../shared/common";
 
 export interface ResourceGroupsResult {
     environments: Record<string, {
@@ -38,11 +39,13 @@ export function createResourceGroups(config: ProjectConfig, providers: Providers
         // State resource group for this environment
         const state = new azure.resources.ResourceGroup(`${config.resourceGroupStateName}-${envKey}`, {
             location: config.location,
+            tags: getStandardTags(config, envKey, 'ResourceGroup', { Purpose: 'State' }),
         }, { provider });
 
         // Identity resource group for this environment
         const identity = new azure.resources.ResourceGroup(`${config.resourceGroupIdentityName}-${envKey}`, {
             location: config.location,
+            tags: getStandardTags(config, envKey, 'ResourceGroup', { Purpose: 'Identity' }),
         }, { provider });
 
         // Optional agents resource group for this environment
@@ -50,12 +53,14 @@ export function createResourceGroups(config: ProjectConfig, providers: Providers
         if (config.useSelfHostedAgents) {
             agents = new azure.resources.ResourceGroup(`${config.resourceGroupAgentsName}-${envKey}`, {
                 location: config.location,
+                tags: getStandardTags(config, envKey, 'ResourceGroup', { Purpose: 'Agents' }),
             }, { provider });
         }
 
         // Workload resource group for this environment (where user resources go)
         const workload = new azure.resources.ResourceGroup(`${config.resourceNameWorkload}-${envKey}-${config.location}`, {
             location: config.location,
+            tags: getStandardTags(config, envKey, 'ResourceGroup', { Purpose: 'Workload' }),
         }, { provider });
 
         environments[envKey] = {

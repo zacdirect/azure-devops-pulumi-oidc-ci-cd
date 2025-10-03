@@ -65,7 +65,7 @@ export function createServiceConnections(
                         targetResourceType: "endpoint",
                         requesterCanApprove: Object.keys(config.approvers).length === 1,
                         approvers: [groups.approversGroup.originId],
-                        timeout: 43200, // 12 hours
+                        timeout: config.serviceConnectionConfig.approvalTimeoutHours * 3600, // Convert hours to seconds
                     });
                     approvalChecks.push(approvalCheck);
                 }
@@ -75,7 +75,7 @@ export function createServiceConnections(
                     projectId: azureDevOpsProjectId,
                     targetResourceId: serviceConnection.id,
                     targetResourceType: "endpoint",
-                    timeout: 43200, // 12 hours
+                    timeout: config.serviceConnectionConfig.exclusiveLockTimeoutHours * 3600, // Convert hours to seconds
                 });
                 exclusiveLocks.push(exclusiveLock);
 

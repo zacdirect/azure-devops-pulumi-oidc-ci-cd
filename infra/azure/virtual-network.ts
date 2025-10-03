@@ -3,6 +3,7 @@ import * as azure from "@pulumi/azure-native";
 import { ProjectConfig } from "../project-config";
 import { ResourceGroupsResult } from "./resource-groups";
 import { ProvidersResult } from "./providers";
+import { getStandardTags } from "../shared/common";
 
 export interface VirtualNetworkSubnet {
     resourceId: pulumi.Output<string>;
@@ -82,6 +83,7 @@ function createVirtualNetworkForEnvironment(
             addressPrefixes: [config.addressSpace],
         },
         enableVmProtection: true,
+        tags: getStandardTags(config, environmentKey, 'VirtualNetwork'),
     }, { provider });
 
     // Create agents subnet with container instance delegation
